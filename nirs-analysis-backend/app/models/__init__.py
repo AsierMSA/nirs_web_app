@@ -1,0 +1,1 @@
+# This file initializes the models package, which defines data structures for the application.

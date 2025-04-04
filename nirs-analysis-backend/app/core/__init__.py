@@ -1,0 +1,1 @@
+# This file initializes the core package, which contains the main logic for analysis and plotting.
