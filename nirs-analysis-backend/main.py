@@ -9,7 +9,7 @@ import traceback
 from werkzeug.utils import secure_filename  # Add this import for secure_filename
 
 # Fix imports - remove the folder with dash from import path
-from app.core.analyzer import analyze_nirs_file, load_nirs_data
+from app.core.nirs_processor import analyze_nirs_file, load_nirs_data
 from app.core.plotting import generate_plots_for_api
 
 def create_app():
@@ -158,18 +158,22 @@ def create_app():
             # Generate plots
             plots = generate_plots_for_api(analysis_result, activities)
             
-            # Return analysis results and plots
-            return jsonify({
+            # Prepare the response
+            response = {
                 'message': 'Analysis completed successfully',
+                'features': analysis_result.get('features', {}),
                 'plots': plots,
                 'file_id': file_id,
                 'activities': activities
-            }), 200
+            }
+            
+            print(f"[DEBUG] Response sent to frontend: {response}")  # Log completo de la respuesta
+            return jsonify(response), 200
             
         except Exception as e:
             print(traceback.format_exc())
             return jsonify({'error': f'Server error: {str(e)}'}), 500
-    
+        
     return app
 
 if __name__ == '__main__':

@@ -61,22 +61,28 @@ export async function fetchFileActivities(fileId) {
 /**
  * Run analysis on a specific file with selected activities
  */
-export async function analyzeFile(fileId, activities) {
-  const response = await fetch(`${API_BASE_URL}/api/analyze`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      file_id: fileId,
-      activities: activities
-    })
-  });
+export const analyzeFile = async (fileId, activities) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        file_id: fileId, 
+        activities 
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[ERROR] Server response (${response.status}):`, errorText);
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    
+    const data = await response.json();
   
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Analysis failed');
+    return data;
+  } catch (error) {
+    console.error(`[ERROR] API call failed for file ${fileId}:`, error);
+    throw error;
   }
-  
-  return response.json();
-}
+};

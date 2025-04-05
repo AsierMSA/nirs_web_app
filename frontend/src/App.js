@@ -5,7 +5,8 @@ import ActivitySelector from './components/ActivitySelector';
 import PlotViewer from './components/PlotViewer';
 import { fetchAvailableFiles, analyzeFile } from './api/apiService';
 import './styles/App.css';
-
+import InterpretationViewer from './components/InterpretationViewer';
+import FeatureImportanceViewer from './components/FeatureImportanceViewer';
 function App() {
   // State management
   const [files, setFiles] = useState([]);
@@ -15,7 +16,7 @@ function App() {
   const [plots, setPlots] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
+  
   // Load available files on component mount
   useEffect(() => {
     const loadFiles = async () => {
@@ -69,10 +70,27 @@ function App() {
     try {
       const results = {};
       
-      // Process each selected file with its selected activities
       for (const fileId of selectedFiles) {
         if (selectedActivities[fileId] && selectedActivities[fileId].length > 0) {
           const fileResult = await analyzeFile(fileId, selectedActivities[fileId]);
+          
+          // Nuevo log para la característica más importante
+          if (fileResult.features?.top_features?.length > 0) {
+            
+            
+            // Log de los detalles de la característica
+            const feature = fileResult.features.top_features[0];
+            const region = feature.split('_')[0] || 'unknown';
+            const wavelength = feature.includes('850') ? '850nm (oxyHb)' : 
+                               feature.includes('760') ? '760nm (deoxyHb)' : 'unknown';
+            
+            console.log(`   Region: ${region}`);
+            console.log(`   Wavelength: ${wavelength}`);
+            console.log(`   Relative importance: Highest F-score among all features`);
+          } else {
+            console.log(`No important features found for ${fileId}`);
+          }
+          
           results[fileId] = fileResult;
         }
       }
@@ -133,17 +151,28 @@ function App() {
         
         <section className="results-section">
           <h2>Analysis Results</h2>
-          {Object.keys(plots).length > 0 ? (
-            Object.entries(plots).map(([fileId, plotData]) => (
+          {Object.entries(plots).map(([fileId, plotData]) => (
+            <div key={fileId} className="result-container">
               <PlotViewer 
-                key={fileId}
+                key={`plot-${fileId}`}
                 fileName={files.find(file => file.id === fileId)?.name || fileId}
                 plotData={plotData} 
               />
-            ))
-          ) : (
-            <p className="info-text">Run analysis to view results</p>
-          )}
+            {/* Add the FeatureImportanceViewer here */}
+            {plotData.plots?.feature_importance && plotData.features?.top_features && (
+              <FeatureImportanceViewer
+                key={`feat-imp-${fileId}`}
+                featureImportanceData={plotData.plots.feature_importance}
+                topFeatures={plotData.features.top_features}
+              />
+            )}
+            <InterpretationViewer 
+              key={`interp-${fileId}`}
+              interpretationData={plotData.interpretation || {}}
+              topFeatures={plotData.features?.top_features || []}
+            />
+            </div>
+          ))}
         </section>
       </main>
     </div>

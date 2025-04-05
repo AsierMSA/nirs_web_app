@@ -246,3 +246,266 @@
   object-fit: contain;
   padding: 15px;
 }
+/* Interpretation Viewer Styles */
+.interpretation-container {
+  margin-top: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.section-title {
+  background-color: #f0f8ff;
+  padding: 10px 15px;
+  margin: 0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #f5f5f5;
+}
+
+.tab {
+  padding: 10px 15px;
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.tab.active {
+  background-color: white;
+  border-bottom: 2px solid #4285f4;
+}
+
+.tab-content {
+  padding: 15px;
+  background-color: white;
+}
+
+/* Feature Panel */
+.features-panel {
+  display: flex;
+  gap: 20px;
+}
+
+.feature-list {
+  width: 250px;
+  border-right: 1px solid #e0e0e0;
+  padding-right: 15px;
+}
+
+.feature-list h4 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.help-button {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #4285f4;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.feature-list ul {
+  list-style: none;
+  padding: 0;
+}
+
+.feature-list li {
+  padding: 8px 5px;
+  margin-bottom: 2px;
+  background-color: #f9f9f9;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.feature-list li.selected {
+  background-color: #e3f2fd;
+  border-left: 3px solid #4285f4;
+}
+
+.feature-details {
+  flex: 1;
+}
+
+.detail-card {
+  display: flex;
+  gap: 20px;
+  padding: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+}
+
+.brain-image-container {
+  position: relative;
+  width: 200px;
+  height: 200px;
+}
+
+.brain-image-container img {
+  max-width: 100%;
+}
+
+.highlight {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 2px solid #ff5722;
+  opacity: 0.7;
+}
+
+.highlight.frontal {
+  top: 20px;
+  left: 70px;
+}
+
+.highlight.temporal {
+  top: 80px;
+  left: 140px;
+}
+
+.highlight.parietal {
+  top: 50px;
+  left: 110px;
+}
+
+.explanation {
+  flex: 1;
+}
+
+/* Event and Region Tables */
+.event-table, .region-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.event-table th, .event-table td,
+.region-table th, .region-table td {
+  padding: 8px 15px;
+  text-align: left;
+  border: 1px solid #e0e0e0;
+}
+
+.event-table th, .region-table th {
+  background-color: #f5f5f5;
+}
+
+/* Processing Panel */
+.accordion {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.accordion-item {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.accordion-item:last-child {
+  border-bottom: none;
+}
+
+.accordion-header {
+  padding: 12px 15px;
+  background-color: #f5f5f5;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.accordion-content {
+  padding: 15px;
+  background-color: white;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: white;
+  border-radius: 4px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.modal-header h3 {
+  margin: 0;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-body code {
+  background-color: #f5f5f5;
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+.feature-importance-container {
+  margin: 20px 0;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.feature-importance-img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+.image-container {
+  position: relative;
+  margin-bottom: 15px;
+}
+
+.top-features-list {
+  margin-top: 15px;
+}
+
+.most-important {
+  color: #ff5722;
+  font-weight: bold;
+}
+
+.top-badge {
+  background-color: #ff5722;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 8px;
+}
