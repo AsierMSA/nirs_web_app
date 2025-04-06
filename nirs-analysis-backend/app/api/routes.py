@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 from app.api.validators import validate_file_upload
-from app.core.analyzer import analyze_nirs_data, analyze_nirs_file
+from app.core.nirs_processor import analyze_nirs_data, analyze_nirs_file
 from app.utils.file_handlers import save_uploaded_file
 import os
 import logging

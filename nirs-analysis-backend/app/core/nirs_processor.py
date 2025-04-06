@@ -5,6 +5,7 @@ and extracting basic features from raw data.
 """
 
 import os
+from matplotlib import patches
 import mne
 import numpy as np
 import matplotlib.pyplot as plt
@@ -140,7 +141,10 @@ def extract_events_and_visualize(raw_data, event_ids, tmin=-5.0, tmax=20.0):
     
     # Extract valid events for the requested activities
     for annot in raw_data.annotations:
-        if annot['description'] in event_ids:
+        # Convert NumPy string to Python string before using as dict key
+        description = str(annot['description'])
+        
+        if description in event_ids:
             onset = annot['onset']
             
             # Validate event position
@@ -152,15 +156,16 @@ def extract_events_and_visualize(raw_data, event_ids, tmin=-5.0, tmax=20.0):
             
             # Convert onset time to sample index
             onset_sample = int(onset * sfreq)
-            valid_events.append([onset_sample, 0, event_ids[annot['description']]])
+            valid_events.append([onset_sample, 0, event_ids[description]])  # Use the Python string
             
             # Store event info for later
             event_info.append({
                 'onset': onset,
-                'description': annot['description'],
+                'description': description,  # Store Python string
                 'duration': annot['duration'],
-                'code': event_ids[annot['description']]
+                'code': event_ids[description]  # Use Python string
             })
+    
     
     if not valid_events:
         if found_activities:
@@ -430,14 +435,14 @@ def extract_features_from_events(raw_data, valid_events, event_ids, tmin=-5.0, t
     unique_channels.sort()
     
     # Generate channel analysis plot
-    fig_channels, axs = plt.subplots(min(3, len(unique_channels)), 1, figsize=(15, 4*min(3, len(unique_channels))))
+    fig_channels, axs = plt.subplots(min(10, len(unique_channels)), 1, figsize=(15, 4*min(10, len(unique_channels))))
     if not isinstance(axs, np.ndarray):
         axs = [axs]
     
     region_data = {}
     
     # Solo mostramos los primeros canales para no saturar el gráfico
-    channels_to_show = unique_channels[:3]
+    channels_to_show = unique_channels[:10]
     
     for i, channel in enumerate(channels_to_show):
         region_data[channel] = {}
@@ -595,33 +600,53 @@ def extract_features_from_events(raw_data, valid_events, event_ids, tmin=-5.0, t
     }
 def print_available_channels(raw_data):
     """
-    Imprime los canales disponibles y extrae los pares fuente-detector.
+    Print available channels and extract source-detector pairs.
     """
-    print("\n===== CANALES DISPONIBLES =====")
-    print(f"Total canales: {len(raw_data.ch_names)}")
+    print("\n===== AVAILABLE CHANNELS =====")
+    print(f"Total channels: {len(raw_data.ch_names)}")
     
-    # Imprimir todos los canales
-    print("\nCanales completos:")
+    # Print all channels
+    print("\nComplete channels:")
     for i, ch in enumerate(raw_data.ch_names):
         print(f"  {i}: {ch}")
     
-    # Extraer y contar pares fuente-detector únicos
+    # Extract and count unique source-detector pairs
     source_detector_pairs = set()
     for ch in raw_data.ch_names:
-        # Extraer pares S-D (diferentes formatos posibles)
+        # Extract S-D pairs (different possible formats)
         if 'S' in ch and 'D' in ch:
             parts = ch.split()
             sd_pair = parts[0] if ' ' in ch else ch.split('_')[0]
             source_detector_pairs.add(sd_pair)
     
-    # Imprimir pares fuente-detector únicos
-    print("\nPares fuente-detector únicos:")
+    # Print unique source-detector pairs
+    print("\nUnique source-detector pairs:")
     for i, pair in enumerate(sorted(source_detector_pairs)):
         print(f"  {i}: {pair}")
     
     print("\n==============================\n")
     
     return source_detector_pairs
+def extract_features_from_raw(raw_data, activities):
+    """Extract features from raw NIRS data"""
+    # Create event_ids dictionary from activity list
+    event_ids = {activity: i+1 for i, activity in enumerate(activities)}
+    
+    # First extract events
+    events_result = extract_events_and_visualize(raw_data, event_ids)
+    
+    # Check if there was an error in event extraction
+    if 'error' in events_result:
+        return events_result
+    
+    # Then extract features from events
+    features_result = extract_features_from_events(
+        raw_data, 
+        events_result['valid_events'],
+        event_ids
+    )
+    
+    return features_result
 def analyze_nirs_file(file_path, activities, annotation_map=None):
     try:
         # Import ML functions here to avoid circular imports
@@ -629,17 +654,17 @@ def analyze_nirs_file(file_path, activities, annotation_map=None):
         
         raw_data = load_nirs_data(file_path)
         if raw_data is not None:
-            # Si no hay actividades específicas solicitadas, usar todas las anotaciones no boundary
+            # If no specific activities requested, use all non-boundary annotations
             if not activities:
                 annotations = set([a['description'] for a in raw_data.annotations 
                                   if not a['description'].endswith('boundary')])
                 activities = list(annotations)
             
-            # Aplicar mapeo de anotaciones si se proporciona
+            # Apply annotation mapping if provided
             if annotation_map:
                 raw_data = map_numeric_annotations_to_descriptive(raw_data, annotation_map)
                 
-                # Actualizar lista de actividades con nombres mapeados si es necesario
+                # Update activity list with mapped names if needed
                 mapped_activities = []
                 for activity in activities:
                     if activity in annotation_map:
@@ -648,68 +673,70 @@ def analyze_nirs_file(file_path, activities, annotation_map=None):
                         mapped_activities.append(activity)
                 activities = mapped_activities
             
-            # Crear diccionario event_ids de la lista de actividades
+            # Create event_ids dictionary from activity list
             event_ids = {activity: i+1 for i, activity in enumerate(activities)}
             
-            # Extraer eventos y crear visualizaciones
+            # Extract events and create visualizations
             events_result = extract_events_and_visualize(raw_data, event_ids)
             if 'error' in events_result:
                 return events_result
                 
-            # Extraer características de los eventos
+            # Extract features from events
             features_result = extract_features_from_events(
                 raw_data, 
                 events_result['valid_events'],
                 event_ids
             )
 
-            # Visualización de canales
-            activaciones = calculate_activations(raw_data)
-            channels_visualization = create_brain_visualization(raw_data, activaciones)
+            # Channel visualization
+            activations = calculate_activations(raw_data)
+            channels_visualization = create_brain_visualization(raw_data, activations)
 
-
+            # Get interpretation metadata
             from .nirs_ml import generate_interpretation_metadata
             interpretation_data = generate_interpretation_metadata(
                 features_result['feature_names'],
                 raw_data,
-                None  # Pasamos None en lugar de brain_regions
+                None  # We pass None instead of brain_regions
             )
-            create_brain_visualization(raw_data)
-            # Aplicar machine learning si tenemos suficientes datos
+            
+            # Apply machine learning if we have enough data
             if features_result['X_features'].shape[0] > 2 and len(np.unique(features_result['labels'])) > 1:
-                ml_results = apply_machine_learning(
-                    features_result['X_features'], 
-                    features_result['labels'],
-                    features_result['feature_names']
-                )
-                print(f"[DEBUG] Top features received in analyze_nirs_file: {ml_results.get('top_features', [])}")
+                from .nirs_ml import validate_against_temporal_bias
+
+                temporal_validation = apply_machine_learning(
+                features_result['X_features'], 
+                features_result['labels'],
+                features_result['feature_names']
+            )
+                print(f"[DEBUG] Top features received in analyze_nirs_file: {temporal_validation.get('top_features', [])}")
                 
-                # Combinar resultados
+                # Combine results
                 combined_results = {
                     **events_result['event_stats'],
                     'features': {
                         'shape': features_result['X_features'].shape,
                         'feature_count': len(features_result['feature_names']),
-                        'top_features': ml_results.get('top_features', [])
+                        'top_features': temporal_validation.get('top_features', [])
                     },
                     'plots': {
                         'events': events_result['events_plot'],
                         'average_response': features_result['plots']['average_response'],
                         'channels_visualization': channels_visualization,
-                        'channels': features_result['plots']['channels'],  # Nueva visualización de canales 
-                        'classifier_comparison': ml_results.get('plots', {}).get('classifier_comparison'),
-                        'confusion_matrix': ml_results.get('plots', {}).get('confusion_matrix'),
-                        'feature_importance': ml_results.get('plots', {}).get('feature_importance'),
-                        'learning_curve': ml_results.get('plots', {}).get('learning_curve')
+                        'channels': features_result['plots']['channels'],  # New channel visualization
+                        'classifier_comparison': temporal_validation.get('plots', {}).get('classifier_comparison'),
+                        'confusion_matrix': temporal_validation.get('plots', {}).get('confusion_matrix'),
+                        'feature_importance': temporal_validation.get('plots', {}).get('feature_importance'),
+                        'learning_curve': temporal_validation.get('plots', {}).get('learning_curve')
                     },
-                    'channel_data': features_result['region_data'],  # Mantenemos nombre por compatibilidad
-                    'best_classifier': ml_results.get('best_classifier'),
+                    'channel_data': features_result['region_data'],  # Keep name for compatibility
+                    'best_classifier': temporal_validation.get('best_classifier'),
                     'interpretation': interpretation_data,
-                    'accuracy': ml_results.get('accuracy'),
-                    'ml_params': ml_results.get('params', {})
+                    'accuracy': temporal_validation.get('accuracy'),
+                    'ml_params': temporal_validation.get('params', {})
                 }
             else:
-                # Datos insuficientes para análisis ML
+                # Not enough data for ML analysis
                 combined_results = {
                     **events_result['event_stats'],
                     'features': {
@@ -720,9 +747,9 @@ def analyze_nirs_file(file_path, activities, annotation_map=None):
                         'events': events_result['events_plot'],
                         'average_response': features_result['plots']['average_response'],
                         'channels_visualization': channels_visualization,
-                        'channels': features_result['plots']['channels']  # Nueva visualización de canales
+                        'channels': features_result['plots']['channels']  # New channel visualization
                     },
-                    'channel_data': features_result['region_data'],  # Mantenemos nombre por compatibilidad
+                    'channel_data': features_result['region_data'],  # Keep name for compatibility
                     'interpretation': interpretation_data,
                     'warning': 'Insufficient data for machine learning analysis'
                 }
@@ -737,159 +764,235 @@ def analyze_nirs_file(file_path, activities, annotation_map=None):
         }
 def create_brain_visualization(raw_data, activations=None):
     """
-    Visualización 2D de canales NIRS con niveles de activación
+    2D visualization of NIRS channels with activation levels and head silhouette
     
     Parameters:
     ----------
     raw_data : mne.io.Raw
-        Datos NIRS cargados
+        Loaded NIRS data
     activations : dict, optional
-        Diccionario {nombre_canal: valor_activacion} (0-1)
+        Dictionary {channel_name: activation_value} (0-1)
         
     Returns:
     -------
     str
-        Imagen en base64 o None si falla
+        Base64 encoded image or None if failed
     """
-    import matplotlib.pyplot as plt
     from matplotlib.cm import ScalarMappable
     from matplotlib.colors import Normalize
+    from matplotlib import patches
     from io import BytesIO
-    import base64
-    import mne
     import numpy as np
+    import matplotlib.pyplot as plt
+    import base64
+    import traceback
 
-    plt.switch_backend('Agg')  # Backend no interactivo
+    plt.switch_backend('Agg')
 
     try:
-        # Crear una copia del raw_data para no modificar el original
-        raw_copy = raw_data.copy()
+        # Get original channel positions
+        ch_positions = np.array([ch['loc'][:2] for ch in raw_data.info['chs']])
         
-        # Temporalmente cambiar los tipos de canales a 'eeg' para que plot_sensors funcione
-        # Esto es un workaround para resolver el problema con los tipos de canales NIRS
-        for idx in range(len(raw_copy.ch_names)):
-            raw_copy.set_channel_types({raw_copy.ch_names[idx]: 'eeg'})
+        # Create figure manually
+        fig, ax = plt.subplots(figsize=(14, 10))
+        
+        # Initial configuration
+        ax.set_title('NIRS Channels Activation Map', fontsize=14, pad=15)
+        ax.set_facecolor('#f0f0f0')
+        
+        # Calculate the approximate center and radius for the head silhouette
+        # based on channel positions
+        center_x = np.mean(ch_positions[:, 0])
+        center_y = np.mean(ch_positions[:, 1])
+
+        # Calculate INITIAL head radius before adjustment
+        initial_distances = np.sqrt((ch_positions[:, 0] - center_x)**2 + 
+                                  (ch_positions[:, 1] - center_y)**2)
+        head_radius = np.max(initial_distances) * 1.2  # 20% larger than furthest channel
+        
+        # Parameters for sensor positioning
+        vertical_offset = 1.8  # Base vertical offset
+        horizontal_spread = 2  # Horizontal spread factor
+        vertical_spread = 1.4  # NEW: Factor for vertical spreading
+        
+        y_relative = ch_positions[:, 1] - center_y
+
+        # Apply transformations to channel positions
+        for i in range(len(ch_positions)):
+            # Calculate normalized position relative to center
+            rel_y = ch_positions[i, 1] - center_y
             
-        # Configurar figura
-        fig, ax = plt.subplots(figsize=(14, 8))
+            # Move up by offset proportional to radius
+            ch_positions[i, 1] = ch_positions[i, 1] + vertical_offset * head_radius
+            
+            # Add additional vertical spreading based on relative position
+            ch_positions[i, 1] += y_relative[i] * vertical_spread
+            
+            # Apply horizontal spread from center
+            ch_positions[i, 0] = center_x + (ch_positions[i, 0] - center_x) * horizontal_spread
         
-        # Establecer montaje si no existe
-        if not raw_copy.info.get('dig'):
-            montage = mne.channels.make_standard_montage('standard_1020')  # Usar montaje estándar
-            raw_copy.set_montage(montage)
-
-        # Plot básico de sensores - ahora debería funcionar con los canales como tipo 'eeg'
-        mne.viz.plot_sensors(raw_copy.info, show_names=True, axes=ax, show=False)
-
-        # Dibujar activaciones si existen
+        # Recalculate head radius after position adjustment
+        distances = np.sqrt((ch_positions[:, 0] - center_x)**2 + 
+                          (ch_positions[:, 1] - center_y)**2)
+        head_radius = np.max(distances) * 1.2  # 20% larger than furthest channel
+        
+        # Draw head silhouette (circle)
+        head_circle = patches.Circle((center_x, center_y), head_radius, 
+                                    fill=False, color='black', linewidth=1.5,
+                                    zorder=1)
+        ax.add_patch(head_circle)
+        
+        # Draw simple facial features for orientation
+        # Nose (small triangle at the top)
+        nose_height = 0.15 * head_radius
+        ax.plot([center_x, center_x], 
+                [center_y + head_radius, center_y + head_radius + nose_height], 
+                'k-', linewidth=1.5, zorder=1)
+        
+        # Smaller ears with correct orientation
+        ear_width = 0.15 * head_radius  # Small width
+        ear_height = 0.3 * head_radius  # Small height
+        
+        # Left ear - "(" shape (opening towards right)
+        left_ear = patches.Arc((center_x - head_radius, center_y), 
+                              ear_width*2, ear_height*2, 
+                              theta1=90, theta2=270, 
+                              color='black', linewidth=1.5, zorder=1)
+        
+        # Right ear - ")" shape (opening towards left)
+        right_ear = patches.Arc((center_x + head_radius, center_y), 
+                               ear_width*2, ear_height*2, 
+                               theta1=270, theta2=90, 
+                               color='black', linewidth=1.5, zorder=1)
+        
+        ax.add_patch(left_ear)
+        ax.add_patch(right_ear)
+        
+        # Extract unique source-detector pairs and create a mapping
+        channel_pairs = {}
+        for idx, ch_name in enumerate(raw_data.ch_names):
+            # Extract just the S*_D* part from the channel name
+            parts = ch_name.split(' ')
+            if len(parts) >= 1:
+                base_name = parts[0]  # This should be the S*_D* part
+                channel_pairs[idx] = base_name
+            else:
+                channel_pairs[idx] = ch_name  # Fallback to full name if parsing fails
+        
+        # Draw all base channels with simplified labels
+        for idx, pos in enumerate(ch_positions):
+            ax.scatter(pos[0], pos[1], s=50, color='gray', alpha=0.5, marker='o', zorder=10)
+            
+            # Use the simplified channel name (just S*_D* part)
+            simplified_name = channel_pairs[idx]
+            ax.annotate(simplified_name, 
+                        (pos[0], pos[1]),
+                        textcoords="offset points",
+                        xytext=(0,5),
+                        ha='center',
+                        fontsize=8,
+                        zorder=20)
+        
+        # Draw activations
         if activations:
-            # Configurar colormap
             cmap = plt.get_cmap('viridis')
             norm = Normalize(vmin=0, vmax=1)
             
-            # Crear círculos de activación
             for ch_name, val in activations.items():
-                # Buscar el índice del canal
-                if ch_name in raw_copy.ch_names:
-                    ch_idx = raw_copy.ch_names.index(ch_name)
-                    # Obtener posiciones de los sensores del montaje
-                    pos = [ch['loc'][:2] for ch in raw_copy.info['chs']]
-                    if ch_idx < len(pos):
-                        x, y = pos[ch_idx]
-                        # Dibujar círculo con tamaño basado en valor de activación
-                        size = 200 + val * 500  # Tamaño entre 200-700 según activación
-                        ax.scatter(x, y, s=size, 
-                                 color=cmap(val),
-                                 alpha=0.7,
-                                 edgecolor='black',
-                                 linewidth=1,
-                                 zorder=100)  # zorder alto para que esté sobre otros elementos
-
-            # Añadir barra de color
+                if ch_name in raw_data.ch_names:
+                    idx = raw_data.ch_names.index(ch_name)
+                    x, y = ch_positions[idx]
+                    
+                    # Size proportional to area (better scaling)
+                    size = 50 + (val ** 0.5) * 1000  # Non-linear adjustment for better visualization
+                    
+                    ax.scatter(x, y, 
+                             s=size,
+                             color=cmap(val),
+                             alpha=0.7,
+                             edgecolor='black',
+                             linewidth=1,
+                             zorder=15)  # Between base channels and labels
+            
+            # Color bar
             sm = ScalarMappable(cmap=cmap, norm=norm)
             sm.set_array([])
-            cbar = plt.colorbar(sm, ax=ax, shrink=0.6)
-            cbar.set_label('Nivel de Activación', fontsize=12)
-
-        # Mejorar estética
-        ax.set_title('Mapa de Activación de Canales NIRS', fontsize=14, pad=15)
-        ax.set_facecolor('#f0f0f0')
+            cbar = fig.colorbar(sm, ax=ax, shrink=0.5)
+            cbar.set_label('Activation Level', fontsize=10)
+        
+        # Adjust limits automatically to cover the entire head
+        padding = 0.2 * head_radius  # More padding to include ears and nose
+        ax.set_xlim(center_x - head_radius - padding, center_x + head_radius + padding)
+        ax.set_ylim(center_y - head_radius - padding, center_y + head_radius + nose_height + padding)
+        ax.set_aspect('equal')
+        plt.axis('off')
         plt.tight_layout()
-
-        # Convertir a base64
+        
+        # Convert to base64
         buf = BytesIO()
         fig.savefig(buf, format='png', dpi=150, bbox_inches='tight')
         plt.close(fig)
         return base64.b64encode(buf.getvalue()).decode('utf-8')
-
+    
     except Exception as e:
-        print(f"Error en visualización: {str(e)}")
-        # Si falla el método anterior, intentar un enfoque más simple
-        try:
-            fig, ax = plt.subplots(figsize=(10, 8))
-            
-            # Crear una visualización simple de los canales
-            ch_names = raw_data.ch_names
-            n_channels = len(ch_names)
-            
-            # Organizar canales en círculo
-            angles = np.linspace(0, 2*np.pi, n_channels, endpoint=False)
-            x = 0.8 * np.cos(angles)
-            y = 0.8 * np.sin(angles)
-            
-            # Dibujar canales
-            for i, ch in enumerate(ch_names):
-                color = 'red' if activations and ch in activations else 'blue'
-                size = 300 if activations and ch in activations else 150
-                ax.scatter(x[i], y[i], s=size, color=color, alpha=0.7, edgecolor='black')
-                ax.text(x[i]*1.1, y[i]*1.1, ch, ha='center', va='center', fontsize=8,
-                      bbox=dict(facecolor='white', alpha=0.7))
-            
-            # Dibujar círculo representando la cabeza
-            circle = plt.Circle((0, 0), 1, fill=False, edgecolor='black')
-            ax.add_patch(circle)
-            
-            ax.set_xlim(-1.2, 1.2)
-            ax.set_ylim(-1.2, 1.2)
-            ax.set_title('Distribución de Canales NIRS', fontsize=14)
-            ax.set_axis_off()
-            
-            plt.tight_layout()
-            
-            # Convertir a base64
-            buf = BytesIO()
-            fig.savefig(buf, format='png', dpi=100)
-            plt.close(fig)
-            buf.seek(0)
-            return base64.b64encode(buf.getvalue()).decode('utf-8')
-            
-        except Exception as nested_e:
-            print(f"Error en visualización alternativa: {nested_e}")
-            return None
+        print(f"Error in visualization: {str(e)}")
+        traceback.print_exc()
+        return None
+    
 def calculate_activations(raw_data):
     """
-    Calcula activaciones normalizadas (0-1) para cada canal
+    Calculate normalized activations (0-1) for each channel
     
     Parameters:
     ----------
     raw_data : mne.io.Raw
-        Datos NIRS crudos
+        Raw NIRS data
         
     Returns:
     -------
     dict
-        Diccionario {nombre_canal: activación_normalizada}
+        Dictionary {channel_name: normalized_activation}
     """
     import numpy as np
     
-    # Extraer datos y calcular media absoluta por canal
+    # Extract data and calculate absolute mean per channel
     data, _ = raw_data[:, :]
     mean_abs = np.mean(np.abs(data), axis=1)
     
-    # Normalizar a rango 0-1
+    # Normalize to 0-1 range
     min_val = np.min(mean_abs)
     max_val = np.max(mean_abs)
-    normalized = (mean_abs - min_val) / (max_val - min_val + 1e-8)  # +1e-8 evita división por 0
+    normalized = (mean_abs - min_val) / (max_val - min_val + 1e-8)  # +1e-8 avoids division by 0
     
-    # Crear diccionario
+    # Create dictionary
     return {ch: float(normalized[i]) for i, ch in enumerate(raw_data.ch_names)}
+def process_nirs_file_with_temporal_validation(file_path, selected_activities):
+    """Process NIRS file with temporal validation against bias"""
+    # Use the same preprocessing as in analyze_nirs_file
+    raw_data = load_nirs_data(file_path)
+    
+    # Extract features just like in analyze_nirs_file
+    features_result = extract_features_from_events(raw_data, ...)
+    
+    # Instead of apply_machine_learning, use the validation function
+    from .nirs_ml import validate_against_temporal_bias
+    
+    temporal_validation = validate_against_temporal_bias(
+        features_result['X_features'], 
+        features_result['labels'],
+        features_result['feature_names']
+    )
+    
+    # Return both the regular results and validation results
+    combined_results = {
+        # All the visualizations from regular results
+        **temporal_validation['regular_results'],
+        # Add temporal validation specific results
+        'temporal_validation': {
+            'shuffle_mean_accuracy': temporal_validation['shuffle_mean_accuracy'],
+            'p_value': temporal_validation['p_value'],
+            'significant': temporal_validation['significant']
+        }
+    }
+    
+    return combined_results

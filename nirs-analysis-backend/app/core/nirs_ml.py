@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score
-from sklearn.model_selection import LeaveOneOut, GridSearchCV, learning_curve
+from sklearn.model_selection import KFold, LeaveOneOut, GridSearchCV, learning_curve
 from sklearn.feature_selection import SelectKBest, f_classif
 from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
@@ -40,7 +40,7 @@ def apply_machine_learning(X_features, labels, feature_names):
     # Check if we have enough data
     if X_features.shape[0] <= 2 or len(np.unique(labels)) <= 1:
         return {'error': 'Insufficient data for machine learning analysis'}
-    
+    X_features = preprocess_features(X_features)
     # Feature selection
     k_features = min(X_features.shape[0]-1, X_features.shape[1])
     selector = SelectKBest(f_classif, k=k_features)
@@ -93,8 +93,8 @@ def apply_machine_learning(X_features, labels, feature_names):
             )
         
         # Run leave-one-out cross-validation
-        results_dict, y_true, y_pred, best_models = run_cross_validation(
-            X_selected, labels, improved_classifiers, loo
+        results_dict, y_true, y_pred, best_models = run_block_cross_validation(
+        X_selected, labels, improved_classifiers, loo, timestamps=None  
         )
         
         # Create comparison plot
@@ -207,10 +207,12 @@ def perform_hyperparameter_tuning(X_selected, labels, classifiers):
         }
         
         # Only tune a subset of classifiers to save time
-        for name, clf in [('SVM', classifiers['SVM']), 
-                         ('Ridge', classifiers['Ridge']),
-                         ('RandomForest', classifiers['RandomForest'])]:
+        for idx, (name, clf) in enumerate([('SVM', classifiers['SVM']), 
+                                          ('Ridge', classifiers['Ridge']),
+                                          ('RandomForest', classifiers['RandomForest'])]):
             if name in param_grids:
+                print(f"  Tuning {name}... (progress: {(idx+1)*33}%)")
+                
                 # Use GridSearchCV with cross-validation
                 grid = GridSearchCV(
                     clf, param_grids[name], cv=min(5, X_selected.shape[0]), 
@@ -222,61 +224,164 @@ def perform_hyperparameter_tuning(X_selected, labels, classifiers):
                 classifiers[name] = grid.best_estimator_
                 tuning_results[name] = {
                     'best_params': grid.best_params_,
-                    'best_score': grid.best_score_
+                    'best_score': grid.best_score_,
+                    'tuning_complete': True,
+                    'progress': (idx+1)*33  # Update progress percentage
                 }
     
     return tuning_results
+from scipy.signal import detrend
 
-def run_cross_validation(X_selected, labels, classifiers, cv):
-    """Run cross-validation for all classifiers"""
+def preprocess_features(X):
+    """Elimina tendencias temporales y normaliza por bloques"""
+    X_detrended = detrend(X, axis=0, type='linear')
+    
+    # Normalización por bloques temporales
+    scaler = StandardScaler()
+    block_size = 30 
+    for i in range(0, X.shape[0], block_size):
+        block = slice(i, min(i+block_size, X.shape[0]))
+        X_detrended[block] = scaler.fit_transform(X_detrended[block])
+    
+    return X_detrended
+
+def run_block_cross_validation(X_selected, labels, classifiers, cv=None, timestamps=None):
+    """Run block-based cross-validation to prevent temporal leakage"""
     results_dict = {}
     y_true = []
     y_pred = {}
     best_models = {}
     
+    # Create temporal blocks if cv not provided
+    if cv is None:
+        n_blocks = min(5, len(labels)//2)
+        cv = KFold(n_splits=n_blocks, shuffle=False)  # No shuffle preserves temporal order
+    
+    # Sort by timestamps if provided
+    if timestamps is not None:
+        time_sorted_indices = np.argsort(timestamps)
+        X_selected = X_selected[time_sorted_indices]
+        labels = labels[time_sorted_indices]
+        print("Data sorted chronologically by timestamps for temporal validation")
+    else:
+        print("Warning: No timestamps provided, using data in original order")
+    
+    # Apply preprocessing to remove temporal trends
+    X_processed = preprocess_features(X_selected)
+    print("Preprocessing applied: detrending and block normalization")
+
     for name, clf in classifiers.items():
-        print(f"Running cross-validation for {name}...")
-        correct = 0
+        print(f"Running block cross-validation for {name}...")
+        scores = []
         y_pred[name] = []
         
-        for train_idx, test_idx in cv.split(X_selected):
-            X_train, X_test = X_selected[train_idx], X_selected[test_idx]
+        for train_idx, test_idx in cv.split(X_processed):
+            X_train, X_test = X_processed[train_idx], X_processed[test_idx]
             y_train, y_test = labels[train_idx], labels[test_idx]
             
             # Train and predict
             clf.fit(X_train, y_train)
+            
+            # Store predictions
             pred = clf.predict(X_test)
-            correct += (pred[0] == y_test[0])
+            y_pred[name].extend(pred)
             
-            if name == list(classifiers.keys())[0]:  # Only add once
-                y_true.append(y_test[0])
-            y_pred[name].append(pred[0])
-            
-            # Save the model from the last fold
-            if train_idx[-1] == len(X_selected) - 2:  # Last fold
-                best_models[name] = clf
+            # Only add true labels once
+            if name == list(classifiers.keys())[0]:
+                y_true.extend(y_test)
+                
+            score = clf.score(X_test, y_test)
+            scores.append(score)
+        results_dict[name] = np.mean(scores)
         
-        accuracy = correct / len(labels)
-        results_dict[name] = accuracy
+        # Store the trained classifier
+        best_models[name] = clf
     
     return results_dict, y_true, y_pred, best_models
-
 def create_classifier_comparison_plot(results_dict):
     """Create bar plot comparing classifier performance"""
     if not results_dict:
         return None
         
     fig = plt.figure(figsize=(10, 6))
-    plt.bar(results_dict.keys(), results_dict.values())
+    
+    # Sort classifiers by performance for better visualization
+    sorted_results = dict(sorted(results_dict.items(), key=lambda item: item[1], reverse=True))
+    
+    # Create bar colors based on performance
+    colors = plt.cm.viridis(np.linspace(0.2, 0.8, len(sorted_results)))
+    
+    # Plot bars with custom colors
+    bars = plt.bar(range(len(sorted_results)), sorted_results.values(), color=colors)
+    
+    # Customize x-axis
+    plt.xticks(range(len(sorted_results)), sorted_results.keys(), rotation=30, ha='right')
     plt.xlabel('Classifier')
     plt.ylabel('Accuracy')
     plt.title('Classifier Comparison with Optimized Parameters')
-    plt.ylim(0, 1)
-    for i, (k, v) in enumerate(results_dict.items()):
-        plt.text(i, v + 0.05, f'{v:.2f}', ha='center')
+    
+    # Set y-axis limits with some padding
+    plt.ylim(0, min(1.0, max(sorted_results.values()) * 1.2))
+    
+    # Add value labels on top of bars
+    for i, (k, v) in enumerate(sorted_results.items()):
+        plt.text(i, v + 0.02, f'{v:.2f}', ha='center', fontsize=9)
+    
+    # Highlight best classifier
+    best_classifier = max(sorted_results.items(), key=lambda x: x[1])[0]
+    best_idx = list(sorted_results.keys()).index(best_classifier)
+    bars[best_idx].set_color('gold')
+    bars[best_idx].set_edgecolor('black')
+    bars[best_idx].set_linewidth(1.5)
+    
+    # Add a legend
+    plt.legend([bars[best_idx]], ['Best Performer'], loc='upper right')
+    
+    plt.grid(axis='y', linestyle='--', alpha=0.3)
     plt.tight_layout()
     return encode_figure_to_base64(fig)
 
+def validate_against_temporal_bias(X_features, labels, feature_names, timestamps=None):
+    """Enhanced version with strict temporal controls"""
+    # Ensure X_features is preprocessed before any analysis
+    X_processed = preprocess_features(X_features)
+    print("Applied preprocessing to remove temporal trends")
+    
+    # 1. Run regular analysis with preprocessed features
+    regular_results = apply_machine_learning(X_processed, labels, feature_names)
+    
+    # 2. Control with temporal shift (circular shuffle)
+    shift = len(labels)//2  # Mid-session shift
+    shifted_labels = np.concatenate([labels[shift:], labels[:shift]])
+    
+    # 3. Control with chronologically sorted labels
+    time_sorted_labels = np.sort(labels)
+    
+    # Run all controls
+    controls = {
+        'full_shuffle': np.random.permutation(labels),
+        'temporal_shift': shifted_labels,
+        'time_sorted': time_sorted_labels
+    }
+    
+    control_results = {}
+    for name, c_labels in controls.items():
+        res = apply_machine_learning(X_processed, c_labels, feature_names)
+        control_results[name] = res.get('accuracy', 0)
+    
+    # Calculate statistical significance
+    real_accuracy = regular_results['accuracy'] if 'accuracy' in regular_results else 0
+    shuffle_mean = np.mean([acc for acc in control_results.values()])
+    p_value = sum(acc >= real_accuracy for acc in control_results.values()) / len(controls)
+    
+    return {
+        'real_accuracy': real_accuracy,
+        'shuffle_mean_accuracy': shuffle_mean,
+        'controls': control_results,
+        'p_value': p_value,
+        'significant': p_value < 0.05,
+        'preprocessed': True
+    }
 def create_confusion_matrix_plot(y_true, y_pred, classifier_name, accuracy):
     """Create confusion matrix visualization"""
     try:

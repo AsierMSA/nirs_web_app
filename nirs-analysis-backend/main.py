@@ -2,7 +2,7 @@
 Main entry point for the NIRS analysis backend application.
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, make_response, request, jsonify
 from flask_cors import CORS
 import os
 import traceback
@@ -167,15 +167,98 @@ def create_app():
                 'activities': activities
             }
             
-            print(f"[DEBUG] Response sent to frontend: {response}")  # Log completo de la respuesta
             return jsonify(response), 200
             
         except Exception as e:
             print(traceback.format_exc())
             return jsonify({'error': f'Server error: {str(e)}'}), 500
-        
-    return app
+    @app.route('/api/temporal_validation', methods=['POST', 'OPTIONS'])
+    def temporal_validation():
+            """
+            Analyze NIRS data with temporal validation to test for bias.
+            """
+            # Handle preflight OPTIONS request for CORS
+            if request.method == 'OPTIONS':
+                return _build_cors_preflight_response()
+                
+            try:
+                # Get request parameters
+                data = request.get_json()
+                if not data:
+                    return jsonify({'error': 'No data provided'}), 400
+                
+                file_id = data.get('file_id')
+                activities = data.get('activities', [])
+                
+                if not file_id:
+                    return jsonify({'error': 'No file ID provided'}), 400
+                
+                if not activities:
+                    return jsonify({'error': 'No activities provided'}), 400
+                
+                # Get the file path
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_id)
+                
+                if not os.path.exists(file_path):
+                    return jsonify({'error': 'File not found'}), 404
+                
+                # Load the data
+                raw_data = load_nirs_data(file_path)
+                if raw_data is None:
+                    return jsonify({'error': 'Failed to load NIRS data'}), 400
+                    
+                # Extract features and run temporal validation
+                from app.core.nirs_ml import validate_against_temporal_bias
+                from app.core.nirs_processor import extract_features_from_raw
+                
+                # Extract features from raw data
+                features_result = extract_features_from_raw(raw_data, activities)
+                
+                # Run temporal validation
+                temporal_validation = validate_against_temporal_bias(
+                    features_result['X_features'],
+                    features_result['labels'],
+                    features_result['feature_names']
+                )
+                converted_result = {
+                    'temporal_validation': convert_numpy_types(temporal_validation)
+                }
+                # Return results
+                return jsonify(converted_result), 200
+                
+            except Exception as e:
+                print(traceback.format_exc())
+                return jsonify({'error': f'Server error: {str(e)}'}), 500
 
+        # Helper function for CORS preflight responses
+    def _build_cors_preflight_response():
+            response = make_response()
+            response.headers.add("Access-Control-Allow-Origin", "*")
+            response.headers.add("Access-Control-Allow-Headers", "Content-Type")
+            response.headers.add("Access-Control-Allow-Methods", "POST")
+            return response
+    def convert_numpy_types(obj):
+        """Convert NumPy types to standard Python types for JSON serialization"""
+        import numpy as np
+        
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, np.bool_):
+            return bool(obj)
+        elif isinstance(obj, dict):
+            return {key: convert_numpy_types(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [convert_numpy_types(item) for item in obj]
+        else:
+            return obj  
+    return app
+# Add this after the '/api/analyze' endpoint function
+
+   
 if __name__ == '__main__':
     app = create_app()
     app.run(debug=True, host='0.0.0.0', port=5000)

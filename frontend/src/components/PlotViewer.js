@@ -30,6 +30,12 @@ function PlotViewer({ fileName, plotData }) {
            plotName.toLowerCase().includes('timeline');
   };
   
+  // Function to determine if a plot is a channels plot
+  const isChannelsPlot = (plotName) => {
+    return plotName.toLowerCase().includes('channel') &&
+          !plotName.toLowerCase().includes('visualization');
+  };
+  
   return (
     <div className="plot-viewer">
       <h3 className="file-heading">{fileName}</h3>
@@ -65,9 +71,32 @@ function PlotViewer({ fileName, plotData }) {
             </div>
           ))}
         
+        {/* Display channels plot with scrollable container */}
+        {Object.entries(plotData.plots || {})
+          .filter(([plotName]) => isChannelsPlot(plotName))
+          .map(([plotName, base64Image]) => (
+            <div key={plotName} className="plot-item plot-item-large">
+              <h4>{formatPlotName(plotName)}</h4>
+              <div className="scrollable-channels-container">
+                <div className="image-container image-container-channels">
+                  <img 
+                    src={`data:image/png;base64,${base64Image}`} 
+                    alt={`${plotName} plot`}
+                    className="plot-image plot-image-channels"
+                    onClick={() => handleImageClick(base64Image, formatPlotName(plotName))}
+                    style={{ cursor: 'pointer' }}
+                  />
+                </div>
+                <div className="scroll-hint">
+                  Scroll down to see more channels
+                </div>
+              </div>
+            </div>
+          ))}
+        
         {/* Display other plots normally */}
         {Object.entries(plotData.plots || {})
-          .filter(([plotName]) => !isEventsPlot(plotName))
+          .filter(([plotName]) => !isEventsPlot(plotName) && !isChannelsPlot(plotName))
           .map(([plotName, base64Image]) => (
             <div key={plotName} className="plot-item">
               <h4>{formatPlotName(plotName)}</h4>

@@ -86,3 +86,34 @@ export const analyzeFile = async (fileId, activities) => {
     throw error;
   }
 };
+// Add this after the runAnalysis function
+
+/**
+ * Run temporal validation analysis on a specific file with selected activities
+ */
+export const runTemporalValidation = async (fileId, activities) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/temporal_validation`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        file_id: fileId,
+        activities: activities
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // Asegura que tiene la estructura correcta para el componente
+    return data;  // Ya debería contener {temporal_validation: {...}}
+  } catch (error) {
+    console.error('Error in temporal validation:', error);
+    throw error;
+  }
+};

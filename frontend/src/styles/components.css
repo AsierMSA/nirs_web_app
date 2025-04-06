@@ -1,3 +1,6 @@
+/* Add import for the plot-viewer styles */
+@import './plot-viewer.css';
+
 /* Component-specific styling */
 
 /* FileUploader */

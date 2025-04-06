@@ -48,14 +48,25 @@ def plot_raw_data(raw_data):
     str
         Base64 encoded plot
     """
-    fig, ax = plt.subplots(figsize=(10, 6))
-    data, times = raw_data[:10, :]  # Take first 10 channels as example
-    for i, d in enumerate(data):
-        ax.plot(times, d + i*10, label=f"Channel {i}")
+    fig, ax = plt.subplots(figsize=(10, 8))  # Increased height for more channels
+    data, times = raw_data[:15, :]  # Show 15 channels instead of 10
     
+    # Create a colormap for better channel differentiation
+    colors = plt.cm.viridis(np.linspace(0, 1, len(data)))
+    
+    for i, d in enumerate(data):
+        ax.plot(times, d + i*10, label=f"Channel {i}", color=colors[i], linewidth=1.0)
+    
+    # Add a grid for better readability
+    ax.grid(True, linestyle='--', alpha=0.3)
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Amplitude + offset')
-    ax.set_title('Raw NIRS Data (First 10 channels)')
+    ax.set_title('Raw NIRS Data (Multiple channels)')
+    
+    # Add legend on the right side
+    ax.legend(loc='upper left', bbox_to_anchor=(1.02, 1), borderaxespad=0)
+    plt.tight_layout()
+    
     return get_base64_encoded_figure(fig)
 
 def plot_average_response(epochs, event_ids):
