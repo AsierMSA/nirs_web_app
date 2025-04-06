@@ -4,6 +4,7 @@ It includes methods for loading NIRS files, visualizing events and signals,
 and extracting basic features from raw data.
 """
 
+import os
 import mne
 import numpy as np
 import matplotlib.pyplot as plt
@@ -66,6 +67,7 @@ def load_nirs_data(file_path):
     """
     try:
         raw_data = mne.io.read_raw_fif(file_path, preload=True)
+        print_available_channels(raw_data)  # Añade esta línea
         return raw_data
     except Exception as e:
         print(f"Error loading NIRS data: {e}")
@@ -359,34 +361,8 @@ def generate_events_plot(raw_data, valid_events, event_info, event_ids, sfreq, m
 
 def extract_features_from_events(raw_data, valid_events, event_ids, tmin=-5.0, tmax=20.0):
     """
-    Extract features from events in raw data.
-    
-    Parameters:
-    ----------
-    raw_data : mne.io.Raw
-        Raw NIRS data
-    valid_events : list
-        List of valid events as [sample_idx, 0, event_code]
-    event_ids : dict
-        Dictionary mapping event descriptions to numeric IDs
-    tmin : float
-        Start time relative to event onset for data extraction
-    tmax : float
-        End time relative to event onset for data extraction
-        
-    Returns:
-    -------
-    dict
-        Dictionary containing extracted features and related visualizations
+    Extract features from events in raw data using all available channels directly.
     """
-    # Replace the current BRAIN_REGIONS definition:
-
-    BRAIN_REGIONS = {
-        'prefrontal': ['S1_D1', 'S1_D2', 'S2_D1', 'S2_D2'],
-        'central_frontal': ['S3_D3', 'S4_D3', 'S4_D4', 'S5_D4'],
-        'lateral_frontal': ['S6_D5', 'S7_D6', 'S8_D7']
-    }
-    
     # Variables to store results
     data_chunks = []
     labels = []
@@ -441,50 +417,62 @@ def extract_features_from_events(raw_data, valid_events, event_ids, tmin=-5.0, t
     plt.tight_layout()
     avg_response_plot = encode_figure_to_base64(fig_avg)
     
-    # Generate regional analysis plot
-    fig_regions, axs = plt.subplots(len(BRAIN_REGIONS), 1, figsize=(15, 4*len(BRAIN_REGIONS)))
-    if len(BRAIN_REGIONS) == 1:
+    # Extract unique channel identifiers
+    unique_channels = []
+    for ch_name in raw_data.ch_names:
+        parts = ch_name.split(' ')
+        if len(parts) >= 1:
+            channel = parts[0]  # Extraer solo el identificador S*_D*
+            if channel not in unique_channels:
+                unique_channels.append(channel)
+    
+    # Ordenar canales para mejor visualización
+    unique_channels.sort()
+    
+    # Generate channel analysis plot
+    fig_channels, axs = plt.subplots(min(3, len(unique_channels)), 1, figsize=(15, 4*min(3, len(unique_channels))))
+    if not isinstance(axs, np.ndarray):
         axs = [axs]
     
     region_data = {}
     
-    for i, (region_name, channels) in enumerate(BRAIN_REGIONS.items()):
-        region_data[region_name] = {}
+    # Solo mostramos los primeros canales para no saturar el gráfico
+    channels_to_show = unique_channels[:3]
+    
+    for i, channel in enumerate(channels_to_show):
+        region_data[channel] = {}
         ax = axs[i]
         
-        # Identify channels for this region
-        region_picks = []
-        for ch_name in channels:
-            region_picks.extend([idx for idx, ch in enumerate(raw_data.ch_names) 
-                                if ch_name in ch])
+        # Identify indexes for this channel
+        channel_picks = [idx for idx, ch in enumerate(raw_data.ch_names) if channel in ch]
         
-        if region_picks:
+        if channel_picks:
             for condition, condition_chunks in condition_data.items():
                 if condition_chunks:
-                    # Extract regional data for all events in this condition
-                    region_condition_data = [chunk[region_picks, :] for chunk in condition_chunks]
+                    # Extract channel data for all events in this condition
+                    channel_condition_data = [chunk[channel_picks, :] for chunk in condition_chunks]
                     
-                    if region_condition_data:
-                        # Average across events and channels
-                        region_avg = np.mean([np.mean(chunk, axis=0) for chunk in region_condition_data], axis=0)
-                        ax.plot(time_points, region_avg, linewidth=2, label=condition)
+                    if channel_condition_data:
+                        # Average across events
+                        channel_avg = np.mean([np.mean(chunk, axis=0) for chunk in channel_condition_data], axis=0)
+                        ax.plot(time_points, channel_avg, linewidth=2, label=condition)
                         
                         # Store for results
-                        region_data[region_name][condition] = {
-                            'mean': float(np.mean(region_avg)),
-                            'peak': float(np.max(region_avg)),
-                            'std': float(np.std(region_avg))
+                        region_data[channel][condition] = {
+                            'mean': float(np.mean(channel_avg)),
+                            'peak': float(np.max(channel_avg)),
+                            'std': float(np.std(channel_avg))
                         }
         
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Amplitude')
-        ax.set_title(f'{region_name} region')
+        ax.set_title(f'Channel {channel}')
         ax.axvline(x=0, color='k', linestyle='--', alpha=0.5)
         ax.legend()
         ax.grid(True, linestyle='--', alpha=0.3)
     
     plt.tight_layout()
-    regions_plot = encode_figure_to_base64(fig_regions)
+    channels_plot = encode_figure_to_base64(fig_channels)
     
     # Feature extraction
     # Define time windows for different phases
@@ -515,28 +503,20 @@ def extract_features_from_events(raw_data, valid_events, event_ids, tmin=-5.0, t
         else:
             wave_groups['all'] = list(range(len(raw_data.ch_names)))
         
-        # For each brain region
-        for region_name, channels in BRAIN_REGIONS.items():
+        # For each channel
+        for channel in unique_channels:
             for wave_label, wave_picks in wave_groups.items():
-                region_wave_picks = []
+                channel_wave_picks = [idx for idx in wave_picks if channel in raw_data.ch_names[idx]]
                 
-                for ch in channels:
-                    matching_picks = [idx for idx in wave_picks if ch in raw_data.ch_names[idx]]
-                    region_wave_picks.extend(matching_picks)
-                
-                if not region_wave_picks:
-                    # If no channels for this combination, add zeros
-                    for _ in range(7):
-                        features.append(0)
-                        if i == 0:
-                            feature_names.append(f"{region_name}_{wave_label}_feature{_}")
+                if not channel_wave_picks:
+                    # Skip channels with no data for this wavelength
                     continue
                 
                 # Feature name prefix
-                feature_prefix = f"{region_name}_{wave_label}"
+                feature_prefix = f"{channel}_{wave_label}"
                 
                 # Extract data for these channels
-                data = data_chunk[region_wave_picks, :]
+                data = data_chunk[channel_wave_picks, :]
                 
                 try:
                     # Calculate features
@@ -587,11 +567,6 @@ def extract_features_from_events(raw_data, valid_events, event_ids, tmin=-5.0, t
                     
                 except Exception as e:
                     print(f"Error in feature {feature_prefix}: {e}")
-                    # Add dummy values to maintain consistency
-                    for _ in range(7 - (len(features) % 7)):
-                        features.append(0)
-                        if i == 0:
-                            feature_names.append(f"{feature_prefix}_dummy{_}")
         
         # Handle NaN values
         features = np.array(features)
@@ -612,48 +587,59 @@ def extract_features_from_events(raw_data, valid_events, event_ids, tmin=-5.0, t
         'time_points': time_points,
         'plots': {
             'average_response': avg_response_plot,
-            'regions': regions_plot
+            'channels': channels_plot
         },
         'region_data': region_data,
         'n_events': len(valid_events),
         'event_ids': event_ids
     }
-
+def print_available_channels(raw_data):
+    """
+    Imprime los canales disponibles y extrae los pares fuente-detector.
+    """
+    print("\n===== CANALES DISPONIBLES =====")
+    print(f"Total canales: {len(raw_data.ch_names)}")
+    
+    # Imprimir todos los canales
+    print("\nCanales completos:")
+    for i, ch in enumerate(raw_data.ch_names):
+        print(f"  {i}: {ch}")
+    
+    # Extraer y contar pares fuente-detector únicos
+    source_detector_pairs = set()
+    for ch in raw_data.ch_names:
+        # Extraer pares S-D (diferentes formatos posibles)
+        if 'S' in ch and 'D' in ch:
+            parts = ch.split()
+            sd_pair = parts[0] if ' ' in ch else ch.split('_')[0]
+            source_detector_pairs.add(sd_pair)
+    
+    # Imprimir pares fuente-detector únicos
+    print("\nPares fuente-detector únicos:")
+    for i, pair in enumerate(sorted(source_detector_pairs)):
+        print(f"  {i}: {pair}")
+    
+    print("\n==============================\n")
+    
+    return source_detector_pairs
 def analyze_nirs_file(file_path, activities, annotation_map=None):
-    """
-    Analyze a NIRS file and extract relevant features.
-
-    Parameters:
-    ----------
-    file_path : str
-        The path to the NIRS data file.
-    activities : list
-        A list of activity names to extract from the file.
-    annotation_map : dict, optional
-        Mapping from numeric codes to descriptive labels
-        
-    Returns:
-    -------
-    dict
-        A dictionary containing the analysis results
-    """
     try:
         # Import ML functions here to avoid circular imports
         from .nirs_ml import apply_machine_learning
         
         raw_data = load_nirs_data(file_path)
         if raw_data is not None:
-            # If no specific activities were requested, use all non-boundary annotations
+            # Si no hay actividades específicas solicitadas, usar todas las anotaciones no boundary
             if not activities:
                 annotations = set([a['description'] for a in raw_data.annotations 
                                   if not a['description'].endswith('boundary')])
                 activities = list(annotations)
             
-            # Apply annotation mapping if provided
+            # Aplicar mapeo de anotaciones si se proporciona
             if annotation_map:
                 raw_data = map_numeric_annotations_to_descriptive(raw_data, annotation_map)
                 
-                # Update activities list with mapped names if needed
+                # Actualizar lista de actividades con nombres mapeados si es necesario
                 mapped_activities = []
                 for activity in activities:
                     if activity in annotation_map:
@@ -662,34 +648,34 @@ def analyze_nirs_file(file_path, activities, annotation_map=None):
                         mapped_activities.append(activity)
                 activities = mapped_activities
             
-            # Create event_ids dictionary from activities list
+            # Crear diccionario event_ids de la lista de actividades
             event_ids = {activity: i+1 for i, activity in enumerate(activities)}
             
-            # Extract events and create visualizations
+            # Extraer eventos y crear visualizaciones
             events_result = extract_events_and_visualize(raw_data, event_ids)
             if 'error' in events_result:
                 return events_result
                 
-            # Extract features from events
+            # Extraer características de los eventos
             features_result = extract_features_from_events(
                 raw_data, 
                 events_result['valid_events'],
                 event_ids
             )
-            BRAIN_REGIONS = {
-                'frontal': ['S1_D1', 'S1_D3', 'S2_D1', 'S2_D2', 'S2_D4', 'S3_D2'],
-                'temporal': ['S4_D3', 'S4_D5', 'S5_D4', 'S6_D5', 'S6_D7', 'S7_D6'],
-                'parietal': ['S8_D7', 'S8_D9', 'S9_D8']
-            }
+
+            # Visualización de canales
+            activaciones = calculate_activations(raw_data)
+            channels_visualization = create_brain_visualization(raw_data, activaciones)
+
 
             from .nirs_ml import generate_interpretation_metadata
             interpretation_data = generate_interpretation_metadata(
                 features_result['feature_names'],
                 raw_data,
-                BRAIN_REGIONS
+                None  # Pasamos None en lugar de brain_regions
             )
-
-            # Apply machine learning if we have enough data
+            create_brain_visualization(raw_data)
+            # Aplicar machine learning si tenemos suficientes datos
             if features_result['X_features'].shape[0] > 2 and len(np.unique(features_result['labels'])) > 1:
                 ml_results = apply_machine_learning(
                     features_result['X_features'], 
@@ -697,7 +683,8 @@ def analyze_nirs_file(file_path, activities, annotation_map=None):
                     features_result['feature_names']
                 )
                 print(f"[DEBUG] Top features received in analyze_nirs_file: {ml_results.get('top_features', [])}")
-                # Combine results
+                
+                # Combinar resultados
                 combined_results = {
                     **events_result['event_stats'],
                     'features': {
@@ -708,20 +695,21 @@ def analyze_nirs_file(file_path, activities, annotation_map=None):
                     'plots': {
                         'events': events_result['events_plot'],
                         'average_response': features_result['plots']['average_response'],
-                        'regions': features_result['plots']['regions'],
+                        'channels_visualization': channels_visualization,
+                        'channels': features_result['plots']['channels'],  # Nueva visualización de canales 
                         'classifier_comparison': ml_results.get('plots', {}).get('classifier_comparison'),
                         'confusion_matrix': ml_results.get('plots', {}).get('confusion_matrix'),
                         'feature_importance': ml_results.get('plots', {}).get('feature_importance'),
                         'learning_curve': ml_results.get('plots', {}).get('learning_curve')
                     },
-                    'region_data': features_result['region_data'],
+                    'channel_data': features_result['region_data'],  # Mantenemos nombre por compatibilidad
                     'best_classifier': ml_results.get('best_classifier'),
                     'interpretation': interpretation_data,
                     'accuracy': ml_results.get('accuracy'),
                     'ml_params': ml_results.get('params', {})
                 }
             else:
-                # Not enough data for ML analysis
+                # Datos insuficientes para análisis ML
                 combined_results = {
                     **events_result['event_stats'],
                     'features': {
@@ -731,9 +719,10 @@ def analyze_nirs_file(file_path, activities, annotation_map=None):
                     'plots': {
                         'events': events_result['events_plot'],
                         'average_response': features_result['plots']['average_response'],
-                        'regions': features_result['plots']['regions'],
+                        'channels_visualization': channels_visualization,
+                        'channels': features_result['plots']['channels']  # Nueva visualización de canales
                     },
-                    'region_data': features_result['region_data'],
+                    'channel_data': features_result['region_data'],  # Mantenemos nombre por compatibilidad
                     'interpretation': interpretation_data,
                     'warning': 'Insufficient data for machine learning analysis'
                 }
@@ -746,3 +735,161 @@ def analyze_nirs_file(file_path, activities, annotation_map=None):
             'error': f'Analysis failed: {str(e)}',
             'traceback': traceback.format_exc()
         }
+def create_brain_visualization(raw_data, activations=None):
+    """
+    Visualización 2D de canales NIRS con niveles de activación
+    
+    Parameters:
+    ----------
+    raw_data : mne.io.Raw
+        Datos NIRS cargados
+    activations : dict, optional
+        Diccionario {nombre_canal: valor_activacion} (0-1)
+        
+    Returns:
+    -------
+    str
+        Imagen en base64 o None si falla
+    """
+    import matplotlib.pyplot as plt
+    from matplotlib.cm import ScalarMappable
+    from matplotlib.colors import Normalize
+    from io import BytesIO
+    import base64
+    import mne
+    import numpy as np
+
+    plt.switch_backend('Agg')  # Backend no interactivo
+
+    try:
+        # Crear una copia del raw_data para no modificar el original
+        raw_copy = raw_data.copy()
+        
+        # Temporalmente cambiar los tipos de canales a 'eeg' para que plot_sensors funcione
+        # Esto es un workaround para resolver el problema con los tipos de canales NIRS
+        for idx in range(len(raw_copy.ch_names)):
+            raw_copy.set_channel_types({raw_copy.ch_names[idx]: 'eeg'})
+            
+        # Configurar figura
+        fig, ax = plt.subplots(figsize=(14, 8))
+        
+        # Establecer montaje si no existe
+        if not raw_copy.info.get('dig'):
+            montage = mne.channels.make_standard_montage('standard_1020')  # Usar montaje estándar
+            raw_copy.set_montage(montage)
+
+        # Plot básico de sensores - ahora debería funcionar con los canales como tipo 'eeg'
+        mne.viz.plot_sensors(raw_copy.info, show_names=True, axes=ax, show=False)
+
+        # Dibujar activaciones si existen
+        if activations:
+            # Configurar colormap
+            cmap = plt.get_cmap('viridis')
+            norm = Normalize(vmin=0, vmax=1)
+            
+            # Crear círculos de activación
+            for ch_name, val in activations.items():
+                # Buscar el índice del canal
+                if ch_name in raw_copy.ch_names:
+                    ch_idx = raw_copy.ch_names.index(ch_name)
+                    # Obtener posiciones de los sensores del montaje
+                    pos = [ch['loc'][:2] for ch in raw_copy.info['chs']]
+                    if ch_idx < len(pos):
+                        x, y = pos[ch_idx]
+                        # Dibujar círculo con tamaño basado en valor de activación
+                        size = 200 + val * 500  # Tamaño entre 200-700 según activación
+                        ax.scatter(x, y, s=size, 
+                                 color=cmap(val),
+                                 alpha=0.7,
+                                 edgecolor='black',
+                                 linewidth=1,
+                                 zorder=100)  # zorder alto para que esté sobre otros elementos
+
+            # Añadir barra de color
+            sm = ScalarMappable(cmap=cmap, norm=norm)
+            sm.set_array([])
+            cbar = plt.colorbar(sm, ax=ax, shrink=0.6)
+            cbar.set_label('Nivel de Activación', fontsize=12)
+
+        # Mejorar estética
+        ax.set_title('Mapa de Activación de Canales NIRS', fontsize=14, pad=15)
+        ax.set_facecolor('#f0f0f0')
+        plt.tight_layout()
+
+        # Convertir a base64
+        buf = BytesIO()
+        fig.savefig(buf, format='png', dpi=150, bbox_inches='tight')
+        plt.close(fig)
+        return base64.b64encode(buf.getvalue()).decode('utf-8')
+
+    except Exception as e:
+        print(f"Error en visualización: {str(e)}")
+        # Si falla el método anterior, intentar un enfoque más simple
+        try:
+            fig, ax = plt.subplots(figsize=(10, 8))
+            
+            # Crear una visualización simple de los canales
+            ch_names = raw_data.ch_names
+            n_channels = len(ch_names)
+            
+            # Organizar canales en círculo
+            angles = np.linspace(0, 2*np.pi, n_channels, endpoint=False)
+            x = 0.8 * np.cos(angles)
+            y = 0.8 * np.sin(angles)
+            
+            # Dibujar canales
+            for i, ch in enumerate(ch_names):
+                color = 'red' if activations and ch in activations else 'blue'
+                size = 300 if activations and ch in activations else 150
+                ax.scatter(x[i], y[i], s=size, color=color, alpha=0.7, edgecolor='black')
+                ax.text(x[i]*1.1, y[i]*1.1, ch, ha='center', va='center', fontsize=8,
+                      bbox=dict(facecolor='white', alpha=0.7))
+            
+            # Dibujar círculo representando la cabeza
+            circle = plt.Circle((0, 0), 1, fill=False, edgecolor='black')
+            ax.add_patch(circle)
+            
+            ax.set_xlim(-1.2, 1.2)
+            ax.set_ylim(-1.2, 1.2)
+            ax.set_title('Distribución de Canales NIRS', fontsize=14)
+            ax.set_axis_off()
+            
+            plt.tight_layout()
+            
+            # Convertir a base64
+            buf = BytesIO()
+            fig.savefig(buf, format='png', dpi=100)
+            plt.close(fig)
+            buf.seek(0)
+            return base64.b64encode(buf.getvalue()).decode('utf-8')
+            
+        except Exception as nested_e:
+            print(f"Error en visualización alternativa: {nested_e}")
+            return None
+def calculate_activations(raw_data):
+    """
+    Calcula activaciones normalizadas (0-1) para cada canal
+    
+    Parameters:
+    ----------
+    raw_data : mne.io.Raw
+        Datos NIRS crudos
+        
+    Returns:
+    -------
+    dict
+        Diccionario {nombre_canal: activación_normalizada}
+    """
+    import numpy as np
+    
+    # Extraer datos y calcular media absoluta por canal
+    data, _ = raw_data[:, :]
+    mean_abs = np.mean(np.abs(data), axis=1)
+    
+    # Normalizar a rango 0-1
+    min_val = np.min(mean_abs)
+    max_val = np.max(mean_abs)
+    normalized = (mean_abs - min_val) / (max_val - min_val + 1e-8)  # +1e-8 evita división por 0
+    
+    # Crear diccionario
+    return {ch: float(normalized[i]) for i, ch in enumerate(raw_data.ch_names)}

@@ -359,71 +359,97 @@ def create_learning_curve_plot(clf, X_selected, labels, classifier_name):
     except Exception as e:
         print(f"Error generating learning curve: {str(e)}")
         return None
-def generate_interpretation_metadata(feature_names, raw_data, brain_regions):
-    """Generate metadata for feature interpretation"""
-    # Create region descriptions
-    region_descriptions = {
-        'prefrontal': {
-        'function': 'Funciones ejecutivas superiores',
-        'examples': 'Planificación, toma de decisiones, inhibición de respuestas',
-        'anatomical_areas': 'Corteza prefrontal dorsolateral, corteza orbitofrontal'
-        },
-        'central_frontal': {
-        'function': 'Control motor y preparación motora',
-        'examples': 'Planificación de movimientos, secuencias motoras',
-        'anatomical_areas': 'Área motora suplementaria, córtex premotor'
-        },
-        'lateral_frontal': {
-        'function': 'Procesamiento del lenguaje y memoria de trabajo',
-        'examples': 'Tareas verbales, memoria verbal a corto plazo',
-        'anatomical_areas': 'Área de Broca, corteza prefrontal ventrolateral'
-        }
-    }
+def generate_interpretation_metadata(feature_names, raw_data, brain_regions=None):
+    """Generate metadata for feature interpretation based on individual channels"""
+    # Crear diccionario vacío para brain_regions
+    brain_regions = {}  # Ya no usamos brain_regions
     
-    # Create channel mappings (S = source, D = detector)
-    channel_mappings = {}
-    for ch in raw_data.ch_names:
-        parts = ch.split('_')
-        if len(parts) >= 2:
-            source = parts[0]  # e.g., S1, S2
-            detector = parts[1]  # e.g., D1, D2
-            wavelength = parts[2] if len(parts) > 2 else "unknown"
-            
-            channel_id = f"{source}_{detector}"
-            channel_mappings[channel_id] = {
-                'source_id': source,
-                'detector_id': detector,
-                'wavelength': wavelength,
-                'anatomical_region': next(
-                    (region for region, channels in brain_regions.items() 
-                     if f"{source}_{detector}" in channels), 
-                    'unknown'
-                )
+    # Extraer canales únicos
+    unique_channels = []
+    for ch_name in raw_data.ch_names:
+        parts = ch_name.split(' ')
+        if len(parts) >= 1:
+            channel = parts[0]  # Extraer solo el identificador S*_D*
+            if channel not in unique_channels:
+                unique_channels.append(channel)
+    
+    # Crear descripciones genéricas de canales
+    channel_descriptions = {}
+    for channel in unique_channels:
+        if channel.startswith('S1') or channel.startswith('S2'):
+            channel_descriptions[channel] = {
+                'function': 'Funciones ejecutivas superiores (lóbulo frontal)',
+                'examples': 'Planificación, toma de decisiones, inhibición de respuestas',
+                'anatomical_areas': 'Corteza prefrontal'
+            }
+        elif channel.startswith('S3') or channel.startswith('S4'):
+            channel_descriptions[channel] = {
+                'function': 'Control motor y preparación motora (lóbulo frontal central)',
+                'examples': 'Planificación de movimientos, secuencias motoras',
+                'anatomical_areas': 'Área motora suplementaria'
+            }
+        elif channel.startswith('S5') or channel.startswith('S6'):
+            channel_descriptions[channel] = {
+                'function': 'Procesamiento de lenguaje y memoria de trabajo (lóbulo temporal)',
+                'examples': 'Comprensión del lenguaje, memoria verbal',
+                'anatomical_areas': 'Lóbulo temporal superior'
+            }
+        elif channel.startswith('S7') or channel.startswith('S8'):
+            channel_descriptions[channel] = {
+                'function': 'Integración sensorial y procesamiento espacial (lóbulo parietal)',
+                'examples': 'Orientación espacial, atención selectiva',
+                'anatomical_areas': 'Lóbulo parietal'
+            }
+        else:
+            channel_descriptions[channel] = {
+                'function': 'Actividad cerebral general',
+                'examples': 'Procesamiento sensorial, cognitivo o motor',
+                'anatomical_areas': 'Región cortical'
             }
     
-    # Create feature explanations
+    # Crear mapeo de canales
+    channel_mappings = {}
+    for ch in raw_data.ch_names:
+        parts = ch.split(' ')
+        if len(parts) >= 1:
+            channel_parts = parts[0].split('_')
+            if len(channel_parts) >= 2:
+                source = channel_parts[0]  # e.g., S1, S2
+                detector = channel_parts[1]  # e.g., D1, D2
+                wavelength = parts[1] if len(parts) > 1 else "unknown"
+                
+                channel_id = f"{source}_{detector}"
+                channel_mappings[channel_id] = {
+                    'source_id': source,
+                    'detector_id': detector,
+                    'wavelength': wavelength,
+                    'anatomical_region': 'individual_channel'  # Ya no usamos regiones predefinidas
+                }
+    
+    # Crear explicaciones de características
     feature_explanations = {}
     for feature in feature_names:
         parts = feature.split('_')
         if len(parts) >= 3:
-            region = parts[0]
-            wavelength = parts[1]
-            measure_type = '_'.join(parts[2:])
+            channel_id = f"{parts[0]}_{parts[1]}"  # p.ej. S1_D1
+            wavelength = parts[2]  # p.ej. 850
+            measure_type = '_'.join(parts[3:]) if len(parts) > 3 else "unknown"
             
-            # Create explanation based on feature components
+            # Crear explicación basada en componentes de la característica
             explanation = {
-                'region': region,
-                'region_function': region_descriptions.get(region, {}).get('function', 'Unknown function'),
+                'region': channel_id,
+                'region_function': channel_descriptions.get(channel_id, {}).get('function', 'Unknown function'),
                 'wavelength': wavelength,
-                'wavelength_meaning': '850nm - primarily oxygenated hemoglobin' if wavelength == '850' else '760nm - primarily deoxygenated hemoglobin',
+                'wavelength_meaning': '850nm - primarily oxygenated hemoglobin' if wavelength == '850' else 
+                                     '760nm - primarily deoxygenated hemoglobin',
                 'measure_description': get_measure_description(measure_type)
             }
             
             feature_explanations[feature] = explanation
     
-    # Package all interpretation data
+    # Empaquetar todos los datos de interpretación
     return {
-        'region_descriptions': region_descriptions,
+        'region_descriptions': channel_descriptions,
         'channel_mappings': channel_mappings,
         'feature_explanations': feature_explanations,
         'event_descriptions': {
@@ -433,7 +459,6 @@ def generate_interpretation_metadata(feature_names, raw_data, brain_regions):
             'Baseline': 'Initial recording state before any stimulus presentation'
         }
     }
-
 def get_measure_description(measure_type):
     """Get description for different measure types"""
     descriptions = {
