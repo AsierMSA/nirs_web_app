@@ -49,7 +49,32 @@ function App() {
       setSelectedFiles([...selectedFiles, fileId]);
     }
   };
-
+  const handleFileDelete = async (fileId) => {
+    try {
+      // Call API to delete the file (if you have a delete endpoint)
+      // await deleteFile(fileId);
+      
+      // Remove from selected files
+      if (selectedFiles.includes(fileId)) {
+        setSelectedFiles(selectedFiles.filter(id => id !== fileId));
+      }
+      
+      // Remove from selected activities
+      if (selectedActivities[fileId]) {
+        setSelectedActivities(prev => {
+          const updated = { ...prev };
+          delete updated[fileId];
+          return updated;
+        });
+      }
+      
+      // Remove from files list
+      setFiles(prev => prev.filter(file => file.id !== fileId));
+    } catch (err) {
+      console.error('Error deleting file:', err);
+      setError('Failed to delete file');
+    }
+  };
   // Handle successful file upload
   const handleFileUpload = (uploadedFile) => {
     setFiles(prev => [...prev, uploadedFile]);
@@ -200,9 +225,10 @@ function App() {
           <h2>NIRS Files</h2>
           <FileUploader onFileUpload={handleFileUpload} />
           <FileList 
-            files={files} 
-            selectedFiles={selectedFiles} 
-            onSelectFile={handleFileSelect}
+          files={files} 
+          selectedFiles={selectedFiles}
+          onSelectFile={handleFileSelect}
+          onDeleteFile={handleFileDelete}
           />
         </section>
         

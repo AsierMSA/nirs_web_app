@@ -122,7 +122,13 @@ def create_app():
             'activities': activities,
             'file_id': file_id
         }), 200
-    
+    @app.after_request
+    def add_no_cache_headers(response):
+        """Add headers to prevent caching"""
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
     @app.route('/api/analyze', methods=['POST'])
     def analyze_data():
         """
