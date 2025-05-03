@@ -68,7 +68,7 @@ def load_nirs_data(file_path):
     """
     try:
         raw_data = mne.io.read_raw_fif(file_path, preload=True)
-        print_available_channels(raw_data)  # Añade esta línea
+        print_available_channels(raw_data)  # Add this line
         return raw_data
     except Exception as e:
         print(f"Error loading NIRS data: {e}")
@@ -204,112 +204,111 @@ def extract_events_and_visualize(raw_data, event_ids, tmin=-5.0, tmax=20.0):
         'event_types': event_types
     }
 
+# ...existing code...
 def generate_events_plot(raw_data, valid_events, event_info, event_ids, sfreq, max_time):
-    """Generate detailed visualization of events"""
-    fig_events = plt.figure(figsize=(15, 8))
-    
-    # First plot: Raw data visualization with event markers
+    """Generate detailed visualization of events covering the full duration."""
+    # --- MODIFICATION START: Increase width factor significantly ---
+    # Increase figure width substantially to make the initial view cover a smaller time window (e.g., ~120s)
+    fig_width = max(15, 0.1 * max_time) # Increased factor from 0.01 to 0.1
+    # --- MODIFICATION END ---
+    fig_height = 10 # Keep height reasonable (or adjust if needed)
+    fig_events = plt.figure(figsize=(fig_width, fig_height))
+
+    # First plot: Raw data visualization with event markers (Full Duration)
     ax1 = plt.subplot(2, 1, 1)
-    
+
     # Determine optimal plot parameters
     n_channels_to_show = min(5, len(raw_data.ch_names))
     ch_names_to_show = raw_data.ch_names[:n_channels_to_show]
-    
-    # Determine optimal plot duration based on event density
-    event_times = [event[0] / sfreq for event in valid_events]
-    if event_times:
-        # Find region with highest event density
-        window_size = 60  # seconds
-        max_density_start = 0
-        if len(event_times) > 10:
-            max_density = 0
-            for start in range(0, int(max_time) - window_size + 1, 5):
-                end = start + window_size
-                events_in_window = sum(1 for t in event_times if start <= t < end)
-                density = events_in_window / window_size
-                if density > max_density:
-                    max_density = density
-                    max_density_start = start
-        
-        plot_duration = min(60, max_time)
-        plot_start_time = max(0, min(max_density_start, max_time - plot_duration))
-    else:
-        plot_duration = min(60, max_time)
-        plot_start_time = 0
-    
-    # Extract data for plotting
+
+    plot_start_time = 0.0
+    plot_duration = max_time
+
+    # Extract data for plotting (Full Duration)
     start_sample = int(plot_start_time * sfreq)
     end_sample = int((plot_start_time + plot_duration) * sfreq)
-    data, times = raw_data[:n_channels_to_show, start_sample:end_sample]
-    times = times + plot_start_time
+    end_sample = min(end_sample, raw_data.n_times) 
     
+    if start_sample < raw_data.n_times:
+        data, times = raw_data[:n_channels_to_show, start_sample:end_sample]
+        times = times + plot_start_time 
+    else:
+        data = np.array([[] for _ in range(n_channels_to_show)])
+        times = np.array([])
+
     # Plot the data lines
     for i, ch_data in enumerate(data):
-        # Normalize for better visualization
-        ch_data = ch_data - np.mean(ch_data)
-        ch_data = ch_data / (np.std(ch_data) if np.std(ch_data) > 0 else 1)
-        # Plot with offset for visibility
-        ax1.plot(times, ch_data + i*3, linewidth=0.5)
-    
-    # Add channel labels and customize axes
+        if ch_data.size > 0: 
+            ch_data_mean = np.mean(ch_data)
+            ch_data_std = np.std(ch_data)
+            ch_data_norm = (ch_data - ch_data_mean) / (ch_data_std if ch_data_std > 0 else 1)
+            ax1.plot(times, ch_data_norm + i*3, linewidth=0.5)
+
     ax1.set_yticks(np.arange(0, n_channels_to_show*3, 3))
     ax1.set_yticklabels(ch_names_to_show)
-    
-    # Mark events on the plot
-    max_labels = 20
-    visible_events = [event for event in valid_events 
-                     if plot_start_time <= event[0]/sfreq <= plot_start_time + plot_duration]
-    
+
+    # --- MODIFICATION START: Adjust max_labels based on new width ---
+    # Allow more labels for a wider plot, proportional to width
+    max_labels = int(fig_width * 1.5) # Adjust factor (e.g., 1.5 labels per inch) as needed
+    # --- MODIFICATION END ---
+    visible_events = valid_events 
+
     if len(visible_events) > max_labels:
-        events_to_label = visible_events[::len(visible_events)//max_labels + 1][:max_labels]
+        step = max(1, len(visible_events) // max_labels)
+        events_to_label = visible_events[::step]
         for event in visible_events:
-            event_time = event[0] / sfreq
-            ax1.axvline(event_time, color='r', linestyle='--', alpha=0.4)
+             event_time = event[0] / sfreq
+             ax1.axvline(event_time, color='r', linestyle='--', alpha=0.4, linewidth=0.5) 
     else:
         events_to_label = visible_events
-    
+        for event in visible_events:
+             event_time = event[0] / sfreq
+             ax1.axvline(event_time, color='r', linestyle='--', alpha=0.4, linewidth=0.5) 
+
+    # Add labels for selected events
     for event in events_to_label:
         event_time = event[0] / sfreq
         event_code = event[2]
         event_desc = next((k for k, v in event_ids.items() if v == event_code), f"Code {event_code}")
-        ax1.axvline(event_time, color='r', linestyle='--', alpha=0.7)
         
         mins = int(event_time) // 60
         secs = event_time % 60
         time_str = f"{mins:02d}:{secs:04.1f}"
-        
-        ax1.text(event_time, n_channels_to_show*3, f"{event_desc}\n({time_str})", 
-                rotation=90, verticalalignment='bottom', fontsize=8)
-    
-    # Update plot appearance
+
+        ax1.text(event_time, n_channels_to_show*3, f"{event_desc}\n({time_str})",
+                rotation=90, verticalalignment='bottom', fontsize=10) 
+
     ax1.set_xlabel('Time (s)')
-    ax1.set_title(f'Raw Data with Event Markers ({len(visible_events)} events)')
+    ax1.set_title(f'Raw Data with Event Markers ({len(visible_events)} events total)')
     ax1.set_xlim(plot_start_time, plot_start_time + plot_duration)
     
-    if plot_start_time > 0 or plot_start_time + plot_duration < max_time:
-        ax1.text(0.5, 0.01, 
-                f"Showing {plot_start_time:.1f}s - {plot_start_time + plot_duration:.1f}s of {max_time:.1f}s total",
-                transform=ax1.transAxes, ha='center', fontsize=8, style='italic')
+    # Set x-axis ticks at 60-second intervals
+    tick_interval = 60
+    max_tick = int(plot_duration // tick_interval) * tick_interval
+    ticks = np.arange(plot_start_time, max_tick + tick_interval, tick_interval)
+    ax1.set_xticks(ticks)
+    ax1.set_xticklabels([str(int(t)) for t in ticks]) 
     
-    # Second plot: timeline showing events with labels
+    # Remove the "Showing X.Xs - Y.Ys..." text as it's always full duration now
+    # if plot_start_time > 0 or plot_start_time + plot_duration < max_time:
+    #     ax1.text(...) # This block is removed/commented out
+
+    # Second plot: timeline showing events with labels (Full Duration)
     ax2 = plt.subplot(2, 1, 2)
     
-    # Create color map for different event types
     event_types = sorted(list(set([e['description'] for e in event_info])))
     colors = plt.cm.tab10(np.linspace(0, 1, len(event_types)))
     color_map = {event_type: colors[i] for i, event_type in enumerate(event_types)}
     
-    # Determine visible time window for second plot
     timeline_start = plot_start_time
     timeline_end = plot_start_time + plot_duration
     
-    # Filter and plot events
-    visible_events_timeline = [e for e in event_info 
-                              if (timeline_start <= e['onset'] <= timeline_end) or 
-                                 (e['onset'] < timeline_start and e['onset'] + e['duration'] > timeline_start)]
-    
-    # Calculate max events to label based on available space
-    max_event_labels = 15
+    visible_events_timeline = event_info # All events are relevant now
+
+    # --- MODIFICATION START: Adjust max_event_labels for timeline based on new width ---
+    # Allow more labels for a wider plot, proportional to width
+    max_event_labels = int(fig_width * 0.5) # Adjust density factor (e.g., 0.5 labels per inch)
+    # --- MODIFICATION END ---
     
     if len(visible_events_timeline) > max_event_labels:
         step = max(1, len(visible_events_timeline) // max_event_labels)
@@ -321,11 +320,8 @@ def generate_events_plot(raw_data, valid_events, event_info, event_ids, sfreq, m
     for event in event_info:
         desc = event['description']
         onset = event['onset']
-        duration = event['duration'] if event['duration'] > 0 else 5.0
-        
-        if (onset >= timeline_start and onset <= timeline_end) or \
-           (onset < timeline_start and onset + duration > timeline_start):
-            ax2.axvspan(onset, onset + duration, alpha=0.3, color=color_map[desc])
+        duration = event['duration'] if event['duration'] > 0 else 5.0 # Default duration if 0
+        ax2.axvspan(onset, onset + duration, alpha=0.3, color=color_map[desc])
     
     # Add labels for selected events
     for event in events_to_label:
@@ -333,33 +329,36 @@ def generate_events_plot(raw_data, valid_events, event_info, event_ids, sfreq, m
         onset = event['onset'] 
         duration = event['duration'] if event['duration'] > 0 else 5.0
         
-        label_x = max(timeline_start, min(timeline_end, onset + duration/2))
+        label_x = onset + duration / 2
         
-        if len(events_to_label) <= max_event_labels:
-            ax2.text(label_x, 0.5, desc, 
-                     horizontalalignment='center', 
-                     verticalalignment='center',
-                     rotation=90 if duration < 10 else 0,
-                     fontsize=8, color='black', 
-                     transform=ax2.get_xaxis_transform())
+        # Determine rotation based on duration relative to total time span
+        relative_duration = duration / max_time
+        rotate_label = relative_duration < 0.01 # Rotate if event is less than 1% of total time (adjust threshold if needed)
+
+        ax2.text(label_x, 0.5, desc, 
+                 horizontalalignment='center', 
+                 verticalalignment='center',
+                 rotation=90 if rotate_label else 0,
+                 fontsize=10, color='black', # Smaller font
+                 transform=ax2.get_xaxis_transform())
     
-    # Customize timeline plot
     ax2.set_xlim(timeline_start, timeline_end) 
     ax2.set_ylim(0, 1)
     ax2.set_xlabel('Time (s)')
     ax2.set_yticks([])
-    ax2.set_title(f'Event Timeline ({len(visible_events_timeline)} events in view)')
+    ax2.set_title(f'Event Timeline ({len(visible_events_timeline)} events total)')
     ax2.grid(True, axis='x', linestyle='--', alpha=0.3)
     
-    # Create a legend
-    handles = [plt.Rectangle((0, 0), 1, 1, color=color_map[t], alpha=0.3) for t in event_types]
-    ax2.legend(handles, event_types, loc='upper right', fontsize=8)
+    # Set x-axis ticks at 60-second intervals for ax2
+    ax2.set_xticks(ticks) 
+    ax2.set_xticklabels([str(int(t)) for t in ticks]) 
     
-    # Add indication of shown time range if not showing all data
-    if timeline_start > 0 or timeline_end < max_time:
-        ax2.text(0.5, 0.01, 
-                f"Showing {timeline_start:.1f}s - {timeline_end:.1f}s of {max_time:.1f}s total",
-                transform=ax2.transAxes, ha='center', fontsize=8, style='italic')
+    handles = [plt.Rectangle((0, 0), 1, 1, color=color_map[t], alpha=0.3) for t in event_types]
+    ax2.legend(handles, event_types, loc='upper right', fontsize=11)
+    
+    # Remove the "Showing X.Xs - Y.Ys..." text
+    # if timeline_start > 0 or timeline_end < max_time:
+    #     ax2.text(...) # This block is removed/commented out
     
     plt.tight_layout(pad=1.5)
     return fig_events
@@ -427,11 +426,11 @@ def extract_features_from_events(raw_data, valid_events, event_ids, tmin=-5.0, t
     for ch_name in raw_data.ch_names:
         parts = ch_name.split(' ')
         if len(parts) >= 1:
-            channel = parts[0]  # Extraer solo el identificador S*_D*
+            channel = parts[0]  # Extract only the S*_D* identifier
             if channel not in unique_channels:
                 unique_channels.append(channel)
     
-    # Ordenar canales para mejor visualización
+    # Sort channels for better visualization
     unique_channels.sort()
     
     # Generate channel analysis plot
@@ -441,7 +440,7 @@ def extract_features_from_events(raw_data, valid_events, event_ids, tmin=-5.0, t
     
     region_data = {}
     
-    # Solo mostramos los primeros canales para no saturar el gráfico
+    # Only show the first few channels to avoid cluttering the graph
     channels_to_show = unique_channels[:10]
     
     for i, channel in enumerate(channels_to_show):
@@ -930,7 +929,7 @@ def create_brain_visualization(raw_data, activations=None):
         
         # Convert to base64
         buf = BytesIO()
-        fig.savefig(buf, format='png', dpi=150, bbox_inches='tight')
+        fig.savefig(buf, format='png', dpi=500, bbox_inches='tight')
         plt.close(fig)
         return base64.b64encode(buf.getvalue()).decode('utf-8')
     

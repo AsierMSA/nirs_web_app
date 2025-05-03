@@ -195,14 +195,82 @@ function App() {
       console.error('Analysis error:', err);
       setError('An error occurred during analysis');
       
-      // Marca todos los análisis en progreso como fallidos
+      // Mark all analyses in progress as failed
       setAnalysisProgress(prev => {
         const updated = {...prev};
         Object.keys(updated).forEach(fileId => {
           if (updated[fileId].status !== 'completed') {
             updated[fileId] = {
               status: 'error',
-              message: 'Error en el análisis',
+              message: 'Analysis failed',
+              progress: 0
+            };
+          }
+        });
+        return updated;
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  // Handle Temporal Validation request
+  const handleTemporalValidation = async () => {
+    setLoading(true);
+    setError(null);
+    setPlots({}); // Clear previous results or decide if you want to merge/keep them
+
+    const initialProgress = {};
+    selectedFiles.forEach(fileId => {
+      if (selectedActivities[fileId]?.length > 0) {
+        initialProgress[fileId] = {
+          status: 'validating', // Specific status for validation
+          message: 'Preparing temporal validation...',
+          progress: 0
+        };
+      }
+    });
+    setAnalysisProgress(initialProgress);
+
+    try {
+      const validationResults = {};
+      for (const fileId of selectedFiles) {
+        if (selectedActivities[fileId] && selectedActivities[fileId].length > 0) {
+          setAnalysisProgress(prev => ({
+            ...prev,
+            [fileId]: {
+              status: 'validating',
+              message: 'Running temporal bias checks...',
+              progress: 50 // Mid-point progress
+            }
+          }));
+
+          // Call the temporal validation API endpoint
+          const fileResult = await runTemporalValidation(fileId, selectedActivities[fileId]);
+
+          setAnalysisProgress(prev => ({
+            ...prev,
+            [fileId]: {
+              status: 'completed', // Mark as completed after validation
+              message: 'Temporal validation completed',
+              progress: 100
+            }
+          }));
+
+          validationResults[fileId] = fileResult; // Store validation results
+        }
+      }
+      setPlots(validationResults); // Update state with validation results
+    } catch (err) {
+      console.error('Temporal validation error:', err);
+      setError('An error occurred during temporal validation');
+      // Mark ongoing validations as error
+      setAnalysisProgress(prev => {
+        const updated = {...prev};
+        Object.keys(updated).forEach(fileId => {
+          if (updated[fileId].status === 'validating') {
+            updated[fileId] = {
+              status: 'error',
+              message: 'Validation failed',
               progress: 0
             };
           }
@@ -260,46 +328,7 @@ function App() {
     <button 
       className="validate-button" 
       disabled={loading} // This is correct, using 'loading' instead of 'isLoading'
-      onClick={async () => {
-        setLoading(true); // This is already correct
-        setError(null);
-        try {
-          const results = {};
-          
-          for (const fileId of selectedFiles) {
-            if (selectedActivities[fileId] && selectedActivities[fileId].length > 0) {
-              setAnalysisProgress(prev => ({
-                ...prev, 
-                [fileId]: {
-                  status: 'validating',
-                  message: 'Validating against temporal bias...',
-                  progress: 50
-                }
-              }));
-              
-              const fileResult = await runTemporalValidation(fileId, selectedActivities[fileId]);
-              
-              setAnalysisProgress(prev => ({
-                ...prev, 
-                [fileId]: {
-                  status: 'completed',
-                  message: 'Validation completed',
-                  progress: 100
-                }
-              }));
-              
-              results[fileId] = fileResult;
-            }
-          }
-          
-          setPlots(results); // Use setPlots instead of setPlotData
-        } catch (err) {
-          console.error('Validation error:', err);
-          setError('An error occurred during temporal validation');
-        } finally {
-          setLoading(false); // This is already correct
-        }
-      }}
+      onClick={handleTemporalValidation}
     >
       Validate Against Temporal Bias
     </button>
@@ -308,7 +337,7 @@ function App() {
           
           {error && <p className="error-message">{error}</p>}
           
-          {/* Indicador de progreso para cada archivo */}
+          {/* Progress indicator for each file */}
           {Object.entries(analysisProgress).length > 0 && (
             <div className="analysis-progress">
               {Object.entries(analysisProgress).map(([fileId, progress]) => (
@@ -317,10 +346,13 @@ function App() {
                     <span>{files.find(file => file.id === fileId)?.name || fileId}</span>
                     <span className={`status-badge ${progress.status}`}>
                       {progress.status === 'tuning' && 
-                        <span className="loading-dots">⚙️ Optimizando parámetros<span>.</span><span>.</span><span>.</span></span>
+                        <span className="loading-dots">⚙️ Optimizing parameters<span>.</span><span>.</span><span>.</span></span>
                       }
-                      {progress.status === 'loading' && '🔍 Analizando'}
-                      {progress.status === 'completed' && '✅ Completado'}
+                      {progress.status === 'validating' && 
+                        <span className="loading-dots">🛡️ Validating<span>.</span><span>.</span><span>.</span></span>
+                      }
+                      {progress.status === 'loading' && '🔍 Analyzing'}
+                      {progress.status === 'completed' && '✅ Completed'}
                       {progress.status === 'error' && '❌ Error'}
                     </span>
                   </div>

@@ -53,20 +53,26 @@ function PlotViewer({ fileName, plotData }) {
       )}
       
       <div className="plots-container">
-        {/* Display events plots first and larger */}
+        {/* Display events plots first and larger, now with horizontal scroll */}
         {Object.entries(plotData.plots || {})
           .filter(([plotName]) => isEventsPlot(plotName))
           .map(([plotName, base64Image]) => (
-            <div key={plotName} className="plot-item plot-item-large">
+            <div key={plotName} className="plot-item plot-item-large"> {/* Keep large container */}
               <h4>{formatPlotName(plotName)}</h4>
-              <div className="image-container image-container-large">
-                <img 
-                  src={`data:image/png;base64,${base64Image}`} 
-                  alt={`${plotName} plot`}
-                  className="plot-image"
-                  onClick={() => handleImageClick(base64Image, formatPlotName(plotName))}
-                  style={{ cursor: 'pointer', width: '100%', maxHeight: '500px', objectFit: 'contain' }}
-                />
+              {/* Add a wrapper div for horizontal scrolling */}
+              <div className="scrollable-events-container">
+                <div className="image-container image-container-large"> {/* Keep image container */}
+                  <img
+                    src={`data:image/png;base64,${base64Image}`}
+                    alt={`${plotName} plot`}
+                    className="plot-image plot-image-events" // Add specific class if needed for styling
+                    onClick={() => handleImageClick(base64Image, formatPlotName(plotName))}
+                    style={{ cursor: 'pointer' }} // Remove fixed width/height here if needed
+                  />
+                </div>
+              </div>
+              <div className="scroll-hint">
+                Scroll right to see full timeline →
               </div>
             </div>
           ))}

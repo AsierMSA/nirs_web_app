@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 from app.api.validators import validate_file_upload
-from app.core.nirs_processor import analyze_nirs_data, analyze_nirs_file
+from app.core.nirs_processor import analyze_nirs_file
 from app.utils.file_handlers import save_uploaded_file
 import os
 import logging
@@ -23,18 +23,39 @@ def upload_file():
     file = request.files['file']
     
     # Validate the uploaded file
-    if not validate_file_upload(file):
-        return jsonify({'error': 'Invalid file format. Please upload a .fif or .fif.gz file.'}), 400
+    # Assuming validate_file_upload checks extension and maybe content
+    # if not validate_file_upload(file): # This function seems incomplete/not used
+    #     return jsonify({'error': 'Invalid file format. Please upload a .fif or .fif.gz file.'}), 400
     
-    # Save the uploaded file
-    file_path = save_uploaded_file(file)
+    # Basic filename check
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+        
+    # Check file extension (allow .fif, .fif.gz)
+    allowed_extensions = {'fif', 'gz'}
+    if not ('.' in file.filename and 
+            (file.filename.rsplit('.', 1)[1].lower() in allowed_extensions or
+             file.filename.endswith('.fif.gz'))):
+        return jsonify({'error': 'Invalid file type. Please upload a .fif or .fif.gz file.'}), 400
+
+    # Save the uploaded file using secure_filename
+    filename = secure_filename(file.filename)
+    upload_folder = current_app.config['UPLOAD_FOLDER']
+    os.makedirs(upload_folder, exist_ok=True) # Ensure folder exists
+    file_path = os.path.join(upload_folder, filename)
     
-    # Analyze the NIRS data
     try:
-        results = analyze_nirs_data(file_path, activity_names=["Finger Sequencing", "Simple Tapping", "Motor Imagery", "Bimanual Coordination", "Working Memory", "Rest"])
-        return jsonify(results), 200
+        file.save(file_path)
+        # Return success response with filename/ID
+        return jsonify({
+            'message': 'File uploaded successfully',
+            'filename': filename,
+            'file_id': filename # Using filename as ID for simplicity
+        }), 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error saving file {filename}: {e}")
+        return jsonify({'error': f'Could not save file: {str(e)}'}), 500
+
 
 @api_bp.route('/results', methods=['GET'])
 def get_results():
@@ -52,7 +73,7 @@ def analyze_nirs():
     JSON Body:
     ---------
     {
-        "filename": "example.fif.gz",
+        "file_id": "example.fif.gz", # Changed from filename to file_id
         "activities": ["Finger Sequencing", "Simple Tapping", ...]
     }
     
@@ -69,13 +90,13 @@ def analyze_nirs():
                 'message': 'No JSON data provided'
             }), 400
         
-        filename = data.get('filename')
+        file_id = data.get('file_id') # Use file_id
         activities = data.get('activities', [])
         
-        if not filename:
+        if not file_id:
             return jsonify({
                 'status': 'error',
-                'message': 'Filename is required'
+                'message': 'File ID is required' # Changed from Filename
             }), 400
             
         if not activities:
@@ -84,15 +105,17 @@ def analyze_nirs():
                 'message': 'At least one activity must be selected'
             }), 400
         
-        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], secure_filename(filename))
+        # Construct path using file_id and secure_filename just in case
+        filename = secure_filename(file_id) 
+        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
         
         if not os.path.exists(file_path):
             return jsonify({
                 'status': 'error',
-                'message': 'File not found'
+                'message': f'File not found: {filename}' # More informative error
             }), 404
         
-        # Perform the NIRS analysis
+        # Perform the NIRS analysis using analyze_nirs_file
         results = analyze_nirs_file(file_path, activities)
         
         if 'error' in results:
@@ -100,22 +123,20 @@ def analyze_nirs():
                 'status': 'error',
                 'message': results['error'],
                 'details': results.get('traceback', '')
-            }), 400
+            }), 400 # Or 500 if it's a server-side processing error
         
         # Add analysis metadata
-        results['filename'] = filename
+        results['file_id'] = file_id # Use file_id
         results['activities'] = activities
         
-        return jsonify({
-            'status': 'success',
-            'results': results
-        })
+        # Return the results directly (main.py structure)
+        return jsonify(results) # Removed 'status' and 'results' nesting
         
     except Exception as e:
         logger.error(f"Error in analysis: {e}")
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({
-            'status': 'error',
+            'status': 'error', # Keep status here for general errors
             'message': f'Error in analysis: {str(e)}'
         }), 500

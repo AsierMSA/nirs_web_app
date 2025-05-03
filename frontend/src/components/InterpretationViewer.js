@@ -36,7 +36,7 @@ const BrainRegionsImage = ({ region }) => {
       setHighlightPosition({
         x: position.x * rect.width,
         y: position.y * rect.height,
-        r: 30
+        r: 30 // Radius of the highlight circle
       });
     }
   }, [region, imageLoaded]);
@@ -45,7 +45,7 @@ const BrainRegionsImage = ({ region }) => {
     <div ref={containerRef} style={{ position: 'relative', width: '100%', maxWidth: '240px', height: '200px' }}>
       <img
         ref={imageRef}
-        src="/assets/feature_importance.png" 
+        src="/assets/feature_importance.png" // Make sure this file exists in public/assets/
         alt="Brain Region Visualization"
         style={{ width: '100%', height: '100%',objectPosition: 'top' }}
         onLoad={() => setImageLoaded(true)}
@@ -57,8 +57,8 @@ const BrainRegionsImage = ({ region }) => {
             cx={highlightPosition.x}
             cy={highlightPosition.y}
             r={highlightPosition.r}
-            fill="rgba(255, 87, 34, 0.2)"
-            stroke="#ff5722"
+            fill="rgba(255, 87, 34, 0.2)" // Semi-transparent fill
+            stroke="#ff5722" // Orange stroke
             strokeWidth={3}
             opacity={0.8}
           />
@@ -85,14 +85,15 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
           setSelectedFeature(topFeature);
         } 
         else if (interpretationData && topFeature) {
+          // If the top feature doesn't have an explanation yet, create one
           if (!interpretationData.feature_explanations) {
             interpretationData.feature_explanations = {};
           }
           
           const parts = topFeature.split('_');
-          const region = parts[0] || 'prefrontal';
-          const wavelength = parts[1] || '850';
-          const timeWindow = parts[2] || 'early';
+          const region = parts[0] || 'prefrontal'; // Default region if parsing fails
+          const wavelength = parts[1] || '850'; // Default wavelength
+          const timeWindow = parts[2] || 'early'; // Default time window
           
           // Enhanced feature explanation with scientific context
           interpretationData.feature_explanations[topFeature] = {
@@ -107,13 +108,14 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
           setSelectedFeature(topFeature);
         }
       }
+      // If no top features, select the first available feature
       else if (interpretationData && interpretationData.feature_explanations) {
         const features = Object.keys(interpretationData.feature_explanations);
         if (features.length > 0) {
           setSelectedFeature(features[0]);
         }
         else {
-          // Create default explanation if none exists
+          // Create a default explanation if none exists at all
           const defaultFeature = 'prefrontal_850_early_mean';
           
           interpretationData.feature_explanations[defaultFeature] = {
@@ -126,8 +128,9 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
           setSelectedFeature(defaultFeature);
         }
       }
-    }, [interpretationData, topFeatures]);
+    }, [interpretationData, topFeatures]); // Rerun when data or top features change
     
+    // Display loading message if data is not yet available
     if (!interpretationData) {
       return (
         <div className="interpretation-container">
@@ -137,15 +140,18 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
       );
     }
     
+    // Extract data safely, providing defaults if missing
     const region_descriptions = interpretationData.region_descriptions || {};
     const feature_explanations = interpretationData.feature_explanations || {};
     const event_descriptions = interpretationData.event_descriptions || createDefaultEventDescriptions();
     
-    // Sort features by importance then region
+    // Sort features: top features first, then alphabetically by region
     const sortedFeatures = Object.keys(feature_explanations).sort((a, b) => {
+      // Prioritize top features
       if (topFeatures.includes(a) && !topFeatures.includes(b)) return -1;
       if (!topFeatures.includes(a) && topFeatures.includes(b)) return 1;
       
+      // Otherwise, sort by region name
       const regionA = a?.split('_')[0] || '';
       const regionB = b?.split('_')[0] || '';
       return regionA.localeCompare(regionB);
@@ -155,6 +161,7 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
       <div className="interpretation-container">
         <h3 className="section-title">Neurophysiological Interpretation</h3>
         
+        {/* Tabs for different interpretation aspects */}
         <div className="tabs">
           <button 
             className={`tab ${activeTab === 'features' ? 'active' : ''}`}
@@ -182,18 +189,22 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
           </button>
         </div>
         
+        {/* Content for the active tab */}
         <div className="tab-content">
+          {/* Feature Analysis Tab */}
           {activeTab === 'features' && (
             <div className="features-panel">
+              {/* List of features */}
               <div className="feature-list">
                 <h4>Discriminative Features 
                   <button className="help-button" onClick={() => setShowHelpModal(true)}>
-                    ?
+                    ? {/* Help icon */}
                   </button>
                 </h4>
                 
                 {sortedFeatures.length > 0 ? (
                   <ul>
+                      {/* Display top 15 features */}
                       {sortedFeatures.slice(0, 15).map(feature => (
                       <li 
                           key={feature}
@@ -201,9 +212,10 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
                           ${selectedFeature === feature ? 'selected' : ''} 
                           ${topFeatures.length > 0 && feature === topFeatures[0] ? 'most-important' : ''}
                           `}
-                          onClick={() => setSelectedFeature(feature)}
+                          onClick={() => setSelectedFeature(feature)} // Select feature on click
                       >
-                          {formatFeatureName(feature)}
+                          {formatFeatureName(feature)} {/* Display formatted name */}
+                          {/* Highlight the most important feature */}
                           {topFeatures.length > 0 && feature === topFeatures[0] && (
                             <span className="top-badge">HIGHEST DISCRIMINATIVE POWER</span>
                           )}
@@ -215,15 +227,18 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
                   )}
               </div>
               
+              {/* Details of the selected feature */}
               {selectedFeature && feature_explanations[selectedFeature] && (
                 <div className="feature-details">
                   <h4>{formatFeatureName(selectedFeature)}</h4>
                   <div className="detail-card">
+                    {/* Brain region image */}
                     <div className="brain-image-container">
                       <BrainRegionsImage 
                         region={feature_explanations[selectedFeature].region} 
                       />
                     </div>
+                    {/* Textual explanation */}
                     <div className="explanation">
                       <p><strong>Brain Region:</strong> {capitalize(feature_explanations[selectedFeature].region || 'Unknown')}</p>
                       <p><strong>Neural Function:</strong> {feature_explanations[selectedFeature].region_function || 'Unknown'}</p>
@@ -237,6 +252,7 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
             </div>
           )}
           
+          {/* Experimental Events Tab */}
           {activeTab === 'events' && (
             <div className="events-panel">
               <h4>Experimental Task Descriptions</h4>
@@ -261,6 +277,7 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
             </div>
           )}
           
+          {/* Brain Regions Tab */}
           {activeTab === 'regions' && (
             <div className="regions-panel">
               <h4>Functional Neuroanatomy</h4>
@@ -274,6 +291,7 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
                   </tr>
                 </thead>
                 <tbody>
+                  {/* Use enhanced descriptions */}
                   {Object.entries(getEnhancedRegionDescriptions(region_descriptions)).map(([region, details]) => (
                     <tr key={region}>
                       <td>{capitalize(region)}</td>
@@ -286,10 +304,12 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
             </div>
           )}
           
+          {/* Methodology Tab */}
           {activeTab === 'processing' && (
             <div className="processing-panel">
               <h4>Methodological Details</h4>
               <p className="explanation-text">Understanding the signal processing pipeline is essential for proper interpretation of NIRS results.</p>
+              {/* Accordion for different methodology sections */}
               <div className="accordion">
                 <div className="accordion-item">
                   <div className="accordion-header">
@@ -428,12 +448,13 @@ function getMeasureDescription(timeWindow, measureType) {
 function getPhysiologicalInterpretation(featureName) {
   const parts = featureName.split('_');
   const region = parts[0];
-  const isOxy = parts[1] === '850';
+  const isOxy = parts[1] === '850'; // Check if wavelength is 850nm (HbO)
   const timeWindow = parts[2] || '';
   
   let interpretation = '';
   
   if (isOxy) {
+    // Interpretation for Oxygenated Hemoglobin (HbO)
     interpretation = `Increased oxygenated hemoglobin (HbO) concentration reflects heightened neural activity in the ${region} region`;
     if (timeWindow === 'early') {
       interpretation += ', indicating initial neural recruitment during task processing.';
@@ -443,6 +464,7 @@ function getPhysiologicalInterpretation(featureName) {
       interpretation += ', representing continued neural processing or return to baseline after task completion.';
     }
   } else {
+    // Interpretation for Deoxygenated Hemoglobin (HbR)
     interpretation = `Changes in deoxygenated hemoglobin (HbR) concentration in the ${region} region`;
     interpretation += ' typically show an inverse relationship with neural activity (decreasing with activation).';
   }
@@ -451,7 +473,7 @@ function getPhysiologicalInterpretation(featureName) {
 }
 
 /**
- * Create default event descriptions if none are provided
+ * Create default event descriptions if none are provided by the backend
  */
 function createDefaultEventDescriptions() {
   return {
@@ -465,9 +487,10 @@ function createDefaultEventDescriptions() {
 }
 
 /**
- * Enhance region descriptions with more scientific detail
+ * Enhance region descriptions with more scientific detail, merging with defaults
  */
 function getEnhancedRegionDescriptions(existingDescriptions) {
+  // Default descriptions for common regions
   const defaultDescriptions = {
     'prefrontal': {
       function: 'Executive function, working memory, decision-making, cognitive control',
@@ -491,12 +514,14 @@ function getEnhancedRegionDescriptions(existingDescriptions) {
     }
   };
   
-  // Merge existing descriptions with defaults
+  // Merge existing descriptions from backend with defaults
   const enhanced = {...defaultDescriptions};
   Object.entries(existingDescriptions).forEach(([region, details]) => {
     if (!enhanced[region]) {
+      // Add region if it's not in defaults
       enhanced[region] = details;
     } else {
+      // Merge details, prioritizing existing over default if available
       enhanced[region] = {
         ...enhanced[region],
         function: details.function || enhanced[region].function,
@@ -514,9 +539,9 @@ function getEnhancedRegionDescriptions(existingDescriptions) {
 function formatFeatureName(name) {
   if (!name) return '';
   return name
-    .split('_')
-    .map(word => capitalize(word))
-    .join(' ');
+    .split('_') // Split by underscore
+    .map(word => capitalize(word)) // Capitalize each part
+    .join(' '); // Join with spaces
 }
 
 /**

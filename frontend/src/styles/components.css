@@ -578,3 +578,77 @@
   background-color: #e0e0e0;
   border: none;
 }
+/* ...existing styles... */
+
+/* Container for horizontal scrolling on Events Plot */
+.scrollable-events-container {
+  overflow-x: auto; /* Enable horizontal scroll */
+  overflow-y: hidden; /* Prevent vertical scroll if image is tall */
+  width: 100%; /* Take full width of the plot-item */
+  max-width: 100%; /* Ensure it doesn't overflow its parent */
+  border: 1px solid #eee; /* Optional: add border to indicate scroll area */
+  margin-bottom: 5px; /* Space before scroll hint */
+}
+
+/* Style for the Events Plot image itself inside the scrollable container */
+.plot-image-events {
+  display: block; /* Prevents extra space below image */
+  /* Set a minimum width or let it be natural width if larger than container */
+  /* min-width: 1200px; /* Example: Force a minimum width to ensure scrolling */
+  /* Or let the image determine its width naturally */
+  max-width: none; /* Allow image to exceed container width */
+  height: auto; /* Maintain aspect ratio */
+  max-height: 500px; /* Keep max height constraint */
+  object-fit: contain; /* Adjust as needed */
+}
+
+
+/* Ensure the large plot item accommodates the scrollbar */
+.plot-item-large {
+  width: 100%; /* Takes full width */
+  margin-bottom: 20px; /* Spacing below */
+}
+
+/* Adjust image container if needed */
+.image-container-large {
+  /* Remove fixed height/width if handled by image or scroll container */
+  /* width: 100%; */ /* Might not be needed if scroll container handles width */
+  /* max-height: 500px; */ /* Might be redundant if image style handles it */
+  display: inline-block; /* Important for the scroll container */
+  vertical-align: top; /* Align image to top */
+}
+
+
+/* Style for the scroll hint */
+.scroll-hint {
+  font-size: 0.8em;
+  color: #666;
+  text-align: center;
+  margin-top: 5px;
+}
+
+
+/* Styles for Channels Plot Scroll */
+.scrollable-channels-container {
+  max-height: 600px; /* Limit height */
+  overflow-y: auto; /* Enable vertical scroll */
+  overflow-x: hidden; /* Disable horizontal scroll */
+  border: 1px solid #eee; /* Optional: border */
+  width: 100%;
+  margin-bottom: 5px;
+}
+
+.image-container-channels {
+   /* Container for the image */
+   width: 100%; /* Ensure it fills the scrollable container width */
+}
+
+.plot-image-channels {
+  display: block;
+  width: 100%; /* Make image fill container width */
+  height: auto; /* Maintain aspect ratio */
+  object-fit: contain; /* Or 'cover' or 'fill' depending on desired effect */
+}
+
+
+/* ...rest of the styles... */

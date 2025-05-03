@@ -63,7 +63,7 @@ def create_app():
         return jsonify({
             'message': 'File uploaded successfully',
             'filename': filename,
-            'file_id': filename  # Using filename as file_id for simplicity
+            'file_id': filename  
         }), 200
 
     @app.route('/api/files', methods=['GET'])
@@ -178,6 +178,7 @@ def create_app():
         except Exception as e:
             print(traceback.format_exc())
             return jsonify({'error': f'Server error: {str(e)}'}), 500
+        
     @app.route('/api/temporal_validation', methods=['POST', 'OPTIONS'])
     def temporal_validation():
             """
@@ -262,7 +263,6 @@ def create_app():
         else:
             return obj  
     return app
-# Add this after the '/api/analyze' endpoint function
 
    
 if __name__ == '__main__':
