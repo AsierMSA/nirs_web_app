@@ -1,72 +1,119 @@
-/* Scrollable channels container */
+/* --- Styles for Vertically Scrollable Channels Plot --- */
 .scrollable-channels-container {
   display: flex;
   flex-direction: column;
-  max-height: 400px;
-  overflow-y: auto;
+  max-height: 450px; /* Increased max-height slightly */
+  overflow-y: auto; /* Vertical scroll */
+  overflow-x: hidden; /* Hide horizontal scrollbar */
   border: 1px solid #ddd;
   border-radius: 4px;
-  position: relative;
+  position: relative; /* Needed for sticky scroll hint */
   background-color: #f8f8f8;
   padding: 10px 5px;
 }
 
 .image-container-channels {
   width: 100%;
-  min-height: 300px;
-  max-height: none;
+  /* min-height: 300px; */ /* Removed min-height, let image dictate height */
+  max-height: none; /* Allow image to define height */
 }
 
 .plot-image-channels {
   width: 100%;
   height: auto;
-  object-fit: contain;
+  object-fit: contain; /* Keep aspect ratio, fit within width */
+  display: block; /* Remove potential extra space */
 }
 
+/* --- Styles for Horizontally Scrollable Wide Plots (Events, Feature Importance, etc.) --- */
+.scrollable-plot-container {
+  width: 100%; /* Take full width of the parent plot-item */
+  overflow-x: auto; /* Enable horizontal scrolling */
+  overflow-y: hidden; /* Disable vertical scrolling for this container */
+  /* max-height: 400px; */ /* REMOVED: Allow vertical expansion */
+  border: 1px solid #eee;
+  margin-bottom: 5px; /* Space before scroll hint */
+  background-color: #f8f8f8; /* Consistent background */
+}
+
+/* Ensure the image inside the horizontal scrollable container doesn't shrink */
+.scrollable-plot-container .plot-image {
+  max-width: none; /* CRITICAL: Allow image to be wider than container */
+  height: auto; /* Maintain aspect ratio based on full width */
+  display: block; /* Remove potential extra space */
+}
+
+
+/* --- General Scroll Hint --- */
 .scroll-hint {
-  position: sticky;
-  bottom: 0;
-  background-color: rgba(255, 255, 255, 0.8);
-  padding: 5px;
+  /* position: sticky; */ /* Removed sticky positioning for general use */
+  /* bottom: 0; */
+  background-color: rgba(240, 240, 240, 0.9); /* Slightly adjusted background */
+  padding: 4px 8px;
   font-size: 0.8rem;
-  color: #666;
+  color: #555; /* Slightly darker text */
   text-align: center;
-  border-top: 1px dashed #ddd;
+  border-top: 1px solid #eee; /* Lighter border */
+  border-radius: 0 0 4px 4px; /* Rounded corners at bottom if needed */
+  margin-top: -1px; /* Overlap border slightly if needed */
 }
 
-/* Scrollbar styling */
-.scrollable-channels-container::-webkit-scrollbar {
-  width: 8px;
+/* Specific hint style for the vertical channels scroll */
+.scrollable-channels-container .scroll-hint {
+   position: sticky; /* Restore sticky for vertical scroll */
+   bottom: 0;
+   border-top: 1px dashed #ddd; /* Keep dashed border for this one */
+   background-color: rgba(255, 255, 255, 0.85); /* Keep original background */
 }
 
-.scrollable-channels-container::-webkit-scrollbar-track {
+
+/* --- Scrollbar styling (Applies to both vertical and horizontal) --- */
+/* Use a more general selector or apply to both containers */
+.scrollable-channels-container::-webkit-scrollbar,
+.scrollable-plot-container::-webkit-scrollbar {
+  width: 8px; /* Width for vertical scrollbar */
+  height: 8px; /* Height for horizontal scrollbar */
+}
+
+.scrollable-channels-container::-webkit-scrollbar-track,
+.scrollable-plot-container::-webkit-scrollbar-track {
   background: #f1f1f1;
   border-radius: 4px;
 }
 
-.scrollable-channels-container::-webkit-scrollbar-thumb {
+.scrollable-channels-container::-webkit-scrollbar-thumb,
+.scrollable-plot-container::-webkit-scrollbar-thumb {
   background: #888;
   border-radius: 4px;
 }
 
-.scrollable-channels-container::-webkit-scrollbar-thumb:hover {
+.scrollable-channels-container::-webkit-scrollbar-thumb:hover,
+.scrollable-plot-container::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
 
-/* Status badge updates for tuning */
+/* --- Status badge updates for tuning --- */
 .status-badge.tuning {
-  background-color: #ff9800;
+  background-color: #ff9800; /* Orange */
   color: white;
-  display: flex;
+  display: inline-flex; /* Use inline-flex for better alignment */
   align-items: center;
   justify-content: center;
+  padding: 0.2em 0.6em; /* Adjust padding */
+  border-radius: 0.25rem; /* Standard border radius */
+  font-weight: bold;
 }
 
-/* Loading dots animation */
+/* --- Loading dots animation --- */
 .loading-dots span {
-  animation: loadingDots 1.4s infinite;
+  animation: loadingDots 1.4s infinite ease-in-out; /* Added ease-in-out */
   opacity: 0;
-  display: inline-block;
+  display: inline-block; /* Keep inline-block */
+  width: 6px; /* Give dots some size */
+  height: 6px; /* Give dots some size */
+  background-color: currentColor; /* Use text color */
+  border-radius: 50%; /* Make them round */
+  margin: 0 2px; /* Add spacing */
 }
 
 .loading-dots span:nth-child(1) {
@@ -82,13 +129,73 @@
 }
 
 @keyframes loadingDots {
-  0% {
+  0%, 80%, 100% { /* Hold opacity 0 longer */
     opacity: 0;
+    transform: scale(0.8); /* Add subtle scale */
   }
-  50% {
+  40% { /* Peak opacity */
     opacity: 1;
+    transform: scale(1.0);
   }
-  100% {
-    opacity: 0;
-  }
+}
+
+/* --- Add Plot Item Base Styles (If not defined elsewhere) --- */
+.plot-item {
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 15px;
+  margin-bottom: 20px;
+  background-color: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+}
+
+.plot-item h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  text-align: center;
+  color: #333;
+}
+
+.plot-item .image-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden; /* Hide overflow for non-scrolling images */
+  margin-bottom: 10px; /* Add space below image */
+}
+
+.plot-item .plot-image {
+  max-width: 100%; /* Default: image fits container width */
+  height: auto;
+  display: block;
+}
+
+/* --- Plot Item Size Modifiers --- */
+.plot-item-small {
+  max-width: 400px; /* Example max width */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.plot-item-medium {
+  max-width: 600px; /* Example max width */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.plot-item-large {
+  width: 100%; /* Take full width */
+  max-width: 1200px; /* Optional: Limit max width on very large screens */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Ensure containers within large items don't get shrunk unnecessarily */
+.plot-item-large .image-container,
+.plot-item-large .scrollable-plot-container,
+.plot-item-large .scrollable-channels-container {
+    width: 100%; /* Force full width */
 }

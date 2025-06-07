@@ -598,7 +598,6 @@
   /* Or let the image determine its width naturally */
   max-width: none; /* Allow image to exceed container width */
   height: auto; /* Maintain aspect ratio */
-  max-height: 500px; /* Keep max height constraint */
   object-fit: contain; /* Adjust as needed */
 }
 

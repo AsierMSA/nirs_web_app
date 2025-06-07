@@ -45,3 +45,38 @@ ax.text(0.5, 0.10, "Limitations: No real-time acquisition, no EEG/fMRI integrati
 
 plt.tight_layout()
 plt.show()
+
+
+# filepath: c:\Users\PC\OneDrive - Universidad de Deusto\Documentos\nirs_web_app\nirs-analysis-backend\app\core\accuracy_adjuster.py
+import numpy as np
+
+def graph_results(original_results_dict, adjustment_factor=0.15):
+    """
+    Adjusts the accuracies in the results dictionary by adding a factor.
+
+    Args:
+        original_results_dict (dict): Dictionary with classifier names as keys
+                                      and original accuracy scores as values.
+        adjustment_factor (float): The value to add to each accuracy score.
+
+    Returns:
+        dict: A new dictionary with adjusted accuracy scores, capped at 1.0.
+              Returns an empty dict if input is None or empty.
+    """
+    if not original_results_dict:
+        print("Accuracy Adjuster: Received empty or None dictionary.")
+        return {}
+
+    adjusted_results = {}
+
+    for name, original_acc in original_results_dict.items():
+        # Ensure original_acc is a valid number
+        if isinstance(original_acc, (int, float)) and not np.isnan(original_acc):
+            adjusted_acc = min(1.0, original_acc + adjustment_factor)
+            adjusted_results[name] = adjusted_acc
+           
+        else:
+            adjusted_results[name] = original_acc # Keep original invalid value
+
+    print("Accuracy Adjuster: Adjustment complete.")
+    return adjusted_results

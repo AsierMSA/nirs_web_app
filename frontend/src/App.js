@@ -1,406 +1,262 @@
 import React, { useState, useEffect } from 'react';
 import FileUploader from './components/FileUploader';
 import FileList from './components/FileList';
-import ActivitySelector from './components/ActivitySelector';
-import PlotViewer from './components/PlotViewer';
-import './styles/App.css';
-import InterpretationViewer from './components/InterpretationViewer';
-import FeatureImportanceViewer from './components/FeatureImportanceViewer';
-import TemporalValidationResults from './components/TemporalValidationResults';
-import { fetchAvailableFiles, analyzeFile, runTemporalValidation } from './api/apiService';
+import PlotViewer from './components/PlotViewer'; // Importa PlotViewer
+import TemporalValidationResults from './components/TemporalValidationResults'; // Importa el nuevo componente
+import { fetchAvailableFiles, fetchFileActivities, analyzeFile, runTemporalValidation } from './api/apiService';
+import './styles/App.css'; // Estilos generales de la aplicación
+import './styles/components.css'; // Estilos para componentes como FileUploader, PlotViewer, etc.
 
 function App() {
-  // State management
-  const [files, setFiles] = useState([]);
-  const [selectedFiles, setSelectedFiles] = useState([]);
-  const [selectedActivities, setSelectedActivities] = useState({});
-  const [plots, setPlots] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [availableFiles, setAvailableFiles] = useState([]);
+  const [selectedFileIds, setSelectedFileIds] = useState([]); // Puede ser un array si permites múltiples
+  const [fileActivities, setFileActivities] = useState({}); // { fileId: ['act1', 'act2'], ... }
+  const [selectedActivities, setSelectedActivities] = useState({}); // { fileId: ['selectedAct1'], ... }
+  const [analysisResults, setAnalysisResults] = useState({}); // { fileId: { plots: {...}, features: {...}, ... }, ... }
+  const [temporalValidationData, setTemporalValidationData] = useState({}); // { fileId: { validation_score: ..., p_value: ... } }
+  const [loading, setLoading] = useState({ files: false, activities: {}, analysis: {}, validation: {} });
   const [error, setError] = useState(null);
-  const [analysisProgress, setAnalysisProgress] = useState({});
-  
-  // Load available files on component mount
+
+  // Cargar archivos disponibles al montar el componente
   useEffect(() => {
-    const loadFiles = async () => {
-      try {
-        const availableFiles = await fetchAvailableFiles();
-        setFiles(availableFiles);
-      } catch (err) {
-        console.error('Error loading files:', err);
-        setError('Failed to load available files');
-      }
-    };
-    
-    loadFiles();
+    loadAvailableFiles();
   }, []);
 
-  // Handle file selection
-  const handleFileSelect = (fileId) => {
-    const isSelected = selectedFiles.includes(fileId);
-    
-    if (isSelected) {
-      setSelectedFiles(selectedFiles.filter(id => id !== fileId));
-      setSelectedActivities(prev => {
-        const updated = { ...prev };
-        delete updated[fileId];
-        return updated;
-      });
-    } else {
-      setSelectedFiles([...selectedFiles, fileId]);
-    }
-  };
-  const handleFileDelete = async (fileId) => {
+  const loadAvailableFiles = async () => {
+    setLoading(prev => ({ ...prev, files: true }));
     try {
-      // Call API to delete the file (if you have a delete endpoint)
-      // await deleteFile(fileId);
-      
-      // Remove from selected files
-      if (selectedFiles.includes(fileId)) {
-        setSelectedFiles(selectedFiles.filter(id => id !== fileId));
-      }
-      
-      // Remove from selected activities
-      if (selectedActivities[fileId]) {
-        setSelectedActivities(prev => {
-          const updated = { ...prev };
-          delete updated[fileId];
-          return updated;
-        });
-      }
-      
-      // Remove from files list
-      setFiles(prev => prev.filter(file => file.id !== fileId));
+      const files = await fetchAvailableFiles();
+      setAvailableFiles(files);
+      setError(null);
     } catch (err) {
-      console.error('Error deleting file:', err);
-      setError('Failed to delete file');
+      setError(`Error fetching files: ${err.message}`);
+      console.error(err);
+    } finally {
+      setLoading(prev => ({ ...prev, files: false }));
     }
   };
-  // Handle successful file upload
+
   const handleFileUpload = (uploadedFile) => {
-    setFiles(prev => [...prev, uploadedFile]);
-  };
-
-  // Handle activity selection
-  const handleActivitySelect = (fileId, selectedActivitiesList) => {
-    setSelectedActivities(prev => ({
-      ...prev,
-      [fileId]: selectedActivitiesList
-    }));
-  };
-
-  // Handle analysis request
-  const handleAnalyze = async () => {
-    setLoading(true);
-    setError(null);
-    setPlots({});
-    
-    // Initialize progress state for each file
-    const initialProgress = {};
-    selectedFiles.forEach(fileId => {
-      if (selectedActivities[fileId]?.length > 0) {
-        initialProgress[fileId] = { 
-          status: 'preparing',
-          message: 'Preparing analysis...',
-          progress: 0 
-        };
+    setAvailableFiles(prevFiles => {
+      // Evitar duplicados si el archivo ya existe por alguna razón
+      if (!prevFiles.find(f => f.id === uploadedFile.id)) {
+        return [...prevFiles, uploadedFile];
       }
+      return prevFiles;
     });
-    setAnalysisProgress(initialProgress);
-    
-    try {
-      const results = {};
-      
-      for (const fileId of selectedFiles) {
-        if (selectedActivities[fileId] && selectedActivities[fileId].length > 0) {
-          // Update progress - starting analysis
-          setAnalysisProgress(prev => ({
-            ...prev, 
-            [fileId]: {
-              status: 'loading',
-              message: 'Loading data and extracting features...',
-              progress: 10
-            }
-          }));
-          
-          // Wait a little to show first stage
-          await new Promise(r => setTimeout(r, 500));
-          
-          // Update progress - SVM tuning
-          setAnalysisProgress(prev => ({
-            ...prev, 
-            [fileId]: {
-              status: 'tuning',
-              message: 'Tuning SVM classifier...',
-              progress: 30
-            }
-          }));
-          
-          await new Promise(r => setTimeout(r, 500));
-          
-          // Update progress - RandomForest tuning
-          setAnalysisProgress(prev => ({
-            ...prev, 
-            [fileId]: {
-              status: 'tuning',
-              message: 'Tuning RandomForest classifier...',
-              progress: 60
-            }
-          }));
-          
-          await new Promise(r => setTimeout(r, 500));
-          
-          // Update progress - Ridge tuning  
-          setAnalysisProgress(prev => ({
-            ...prev, 
-            [fileId]: {
-              status: 'tuning',
-              message: 'Tuning Ridge classifier...',
-              progress: 80
-            }
-          }));
-          
-          const fileResult = await analyzeFile(fileId, selectedActivities[fileId]);
-          
-          // Update progress - completed
-          setAnalysisProgress(prev => ({
-            ...prev, 
-            [fileId]: {
-              status: 'completed',
-              message: 'Analysis completed',
-              progress: 100
-            }
-          }));
-          
-          // Log the most important feature
-          if (fileResult.features?.top_features?.length > 0) {
-            // Log feature details
-            const feature = fileResult.features.top_features[0];
-            const region = feature.split('_')[0] || 'unknown';
-            const wavelength = feature.includes('850') ? '850nm (oxyHb)' : 
-                             feature.includes('760') ? '760nm (deoxyHb)' : 'unknown';
-            
-            console.log(`   Region: ${region}`);
-            console.log(`   Wavelength: ${wavelength}`);
-            console.log(`   Relative importance: Highest F-score among all features`);
-          } else {
-            console.log(`No important features found for ${fileId}`);
-          }
-          
-          results[fileId] = fileResult;
+    // Opcionalmente, seleccionar el archivo recién subido y cargar sus actividades
+    // handleFileSelect(uploadedFile.id); 
+  };
+
+  const handleFileSelect = async (fileId) => {
+    const newSelectedFileIds = selectedFileIds.includes(fileId)
+      ? selectedFileIds.filter(id => id !== fileId)
+      : [...selectedFileIds, fileId];
+    setSelectedFileIds(newSelectedFileIds);
+
+    if (newSelectedFileIds.includes(fileId) && !fileActivities[fileId]) {
+      setLoading(prev => ({ ...prev, activities: { ...prev.activities, [fileId]: true } }));
+      try {
+        const activities = await fetchFileActivities(fileId);
+        setFileActivities(prev => ({ ...prev, [fileId]: activities }));
+        // Por defecto, seleccionar todas las actividades o la primera
+        if (activities.length > 0) {
+          setSelectedActivities(prev => ({ ...prev, [fileId]: activities })); // Seleccionar todas por defecto
         }
+        setError(null);
+      } catch (err) {
+        setError(`Error fetching activities for ${fileId}: ${err.message}`);
+        console.error(err);
+      } finally {
+        setLoading(prev => ({ ...prev, activities: { ...prev.activities, [fileId]: false } }));
       }
-      
-      setPlots(results);
-    } catch (err) {
-      console.error('Analysis error:', err);
-      setError('An error occurred during analysis');
-      
-      // Mark all analyses in progress as failed
-      setAnalysisProgress(prev => {
-        const updated = {...prev};
-        Object.keys(updated).forEach(fileId => {
-          if (updated[fileId].status !== 'completed') {
-            updated[fileId] = {
-              status: 'error',
-              message: 'Analysis failed',
-              progress: 0
-            };
-          }
-        });
-        return updated;
-      });
-    } finally {
-      setLoading(false);
     }
   };
-  // Handle Temporal Validation request
-  const handleTemporalValidation = async () => {
-    setLoading(true);
-    setError(null);
-    setPlots({}); // Clear previous results or decide if you want to merge/keep them
 
-    const initialProgress = {};
-    selectedFiles.forEach(fileId => {
-      if (selectedActivities[fileId]?.length > 0) {
-        initialProgress[fileId] = {
-          status: 'validating', // Specific status for validation
-          message: 'Preparing temporal validation...',
-          progress: 0
-        };
-      }
+  const handleActivityChange = (fileId, activity, isChecked) => {
+    setSelectedActivities(prev => {
+      const currentActivities = prev[fileId] || [];
+      const newActivities = isChecked
+        ? [...currentActivities, activity]
+        : currentActivities.filter(a => a !== activity);
+      return { ...prev, [fileId]: newActivities };
     });
-    setAnalysisProgress(initialProgress);
+  };
 
+  const handleAnalyze = async (fileId) => {
+    if (!selectedActivities[fileId] || selectedActivities[fileId].length === 0) {
+      setError(`Please select activities for ${fileId} before analyzing.`);
+      return;
+    }
+    setLoading(prev => ({ ...prev, analysis: { ...prev.analysis, [fileId]: true } }));
+    setError(null);
     try {
-      const validationResults = {};
-      for (const fileId of selectedFiles) {
-        if (selectedActivities[fileId] && selectedActivities[fileId].length > 0) {
-          setAnalysisProgress(prev => ({
-            ...prev,
-            [fileId]: {
-              status: 'validating',
-              message: 'Running temporal bias checks...',
-              progress: 50 // Mid-point progress
-            }
-          }));
-
-          // Call the temporal validation API endpoint
-          const fileResult = await runTemporalValidation(fileId, selectedActivities[fileId]);
-
-          setAnalysisProgress(prev => ({
-            ...prev,
-            [fileId]: {
-              status: 'completed', // Mark as completed after validation
-              message: 'Temporal validation completed',
-              progress: 100
-            }
-          }));
-
-          validationResults[fileId] = fileResult; // Store validation results
-        }
-      }
-      setPlots(validationResults); // Update state with validation results
+      const results = await analyzeFile(fileId, selectedActivities[fileId]);
+      setAnalysisResults(prev => ({ ...prev, [fileId]: results }));
     } catch (err) {
-      console.error('Temporal validation error:', err);
-      setError('An error occurred during temporal validation');
-      // Mark ongoing validations as error
-      setAnalysisProgress(prev => {
-        const updated = {...prev};
-        Object.keys(updated).forEach(fileId => {
-          if (updated[fileId].status === 'validating') {
-            updated[fileId] = {
-              status: 'error',
-              message: 'Validation failed',
-              progress: 0
-            };
-          }
-        });
-        return updated;
-      });
+      setError(`Analysis failed for ${fileId}: ${err.message}`);
+      console.error(err);
+      setAnalysisResults(prev => ({ ...prev, [fileId]: { error: `Analysis failed: ${err.message}` } }));
     } finally {
-      setLoading(false);
+      setLoading(prev => ({ ...prev, analysis: { ...prev.analysis, [fileId]: false } }));
     }
   };
+
+  const handleTemporalValidation = async (fileId) => {
+    if (!selectedActivities[fileId] || selectedActivities[fileId].length === 0) {
+      setError(`Please select activities for ${fileId} before validation.`);
+      return;
+    }
+    setLoading(prev => ({ ...prev, validation: { ...prev.validation, [fileId]: true } }));
+    setError(null);
+    try {
+      const validationResult = await runTemporalValidation(fileId, selectedActivities[fileId]);
+      // La API devuelve { temporal_validation: {...} }
+      setTemporalValidationData(prev => ({ ...prev, [fileId]: validationResult.temporal_validation }));
+    } catch (err) {
+      setError(`Temporal validation failed for ${fileId}: ${err.message}`);
+      console.error(err);
+      setTemporalValidationData(prev => ({ ...prev, [fileId]: { error: `Validation failed: ${err.message}` } }));
+    } finally {
+      setLoading(prev => ({ ...prev, validation: { ...prev.validation, [fileId]: false } }));
+    }
+  };
+  
+  // Lógica para eliminar archivos (a implementar si es necesario)
+  // const handleFileDelete = async (fileId) => { ... }
+
 
   return (
     <div className="app-container">
       <header className="app-header">
         <h1>NIRS Analysis Dashboard</h1>
       </header>
-      
-      <main className="app-content">
-        <section className="file-section">
-          <h2>NIRS Files</h2>
-          <FileUploader onFileUpload={handleFileUpload} />
-          <FileList 
-          files={files} 
-          selectedFiles={selectedFiles}
-          onSelectFile={handleFileSelect}
-          onDeleteFile={handleFileDelete}
-          />
-        </section>
-        
-        <section className="activity-section">
-          <h2>Activities</h2>
-          {selectedFiles.length > 0 ? (
-            selectedFiles.map(fileId => (
-              <ActivitySelector
-                key={fileId}
-                fileId={fileId}
-                fileName={files.find(file => file.id === fileId)?.name || fileId}
-                onSelectActivities={(activities) => handleActivitySelect(fileId, activities)}
-              />
-            ))
-          ) : (
-            <p className="info-text">Select files to view available activities</p>
-          )}
-          
-          {selectedFiles.length > 0 && Object.keys(selectedActivities).length > 0 && (
-  <div className="button-group">
-    <button 
-      className="analyze-button" 
-      onClick={handleAnalyze}
-      disabled={loading}
-    >
-      {loading ? 'Analyzing...' : 'Analyze Selected Data'}
-    </button>
-    
-    <button 
-      className="validate-button" 
-      disabled={loading} // This is correct, using 'loading' instead of 'isLoading'
-      onClick={handleTemporalValidation}
-    >
-      Validate Against Temporal Bias
-    </button>
-  </div>
-)}
-          
-          {error && <p className="error-message">{error}</p>}
-          
-          {/* Progress indicator for each file */}
-          {Object.entries(analysisProgress).length > 0 && (
-            <div className="analysis-progress">
-              {Object.entries(analysisProgress).map(([fileId, progress]) => (
-                <div key={fileId} className="file-progress">
-                  <div className="file-progress-header">
-                    <span>{files.find(file => file.id === fileId)?.name || fileId}</span>
-                    <span className={`status-badge ${progress.status}`}>
-                      {progress.status === 'tuning' && 
-                        <span className="loading-dots">⚙️ Optimizing parameters<span>.</span><span>.</span><span>.</span></span>
-                      }
-                      {progress.status === 'validating' && 
-                        <span className="loading-dots">🛡️ Validating<span>.</span><span>.</span><span>.</span></span>
-                      }
-                      {progress.status === 'loading' && '🔍 Analyzing'}
-                      {progress.status === 'completed' && '✅ Completed'}
-                      {progress.status === 'error' && '❌ Error'}
-                    </span>
-                  </div>
-                  <div className="progress-bar-container">
-                    <div 
-                      className={`progress-bar ${progress.status}`} 
-                      style={{width: `${progress.progress}%`}}
-                    ></div>
-                  </div>
-                  <div className="progress-message">{progress.message}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-        
-        <section className="results-section">
-          <h2>Analysis Results</h2>
-          {Object.entries(plots).map(([fileId, plotData]) => (
-            <div key={fileId} className="result-container">
-              <PlotViewer 
-                key={`plot-${fileId}`}
-                fileName={files.find(file => file.id === fileId)?.name || fileId}
-                plotData={plotData} 
-              />
-            {/* Add the FeatureImportanceViewer here */}
-            {plotData.plots?.feature_importance && plotData.features?.top_features && (
-              <FeatureImportanceViewer
-                key={`feat-imp-${fileId}`}
-                featureImportanceData={plotData.plots.feature_importance}
-                topFeatures={plotData.features.top_features}
-              />
-            )}
-            {plotData.temporal_validation && (
-            <TemporalValidationResults 
-              validationData={plotData.temporal_validation} 
-            />
-          )}
-            <InterpretationViewer 
-              key={`interp-${fileId}`}
-              interpretationData={plotData.interpretation || {}}
-              topFeatures={plotData.features?.top_features || []}
-            />
-            </div>
-          ))}
 
+      {error && <p className="error-message">{error}</p>}
+
+      <section className="upload-section">
+        <h2>Upload NIRS File</h2>
+        <FileUploader onFileUpload={handleFileUpload} />
+      </section>
+
+      <div className="app-content">
+        <section className="files-section">
+          <h2>Available Files</h2>
+          {loading.files ? <p>Loading files...</p> : (
+            <FileList
+              files={availableFiles}
+              selectedFiles={selectedFileIds}
+              onSelectFile={handleFileSelect}
+              // onDeleteFile={handleFileDelete} // Descomentar si se implementa la eliminación
+            />
+          )}
         </section>
-      </main>
+
+        <section className="activities-section">
+          <h2>Select Activities & Analyze</h2>
+          {selectedFileIds.length === 0 && <p className="info-text">Select a file to see available activities.</p>}
+          {selectedFileIds.map(fileId => {
+            const file = availableFiles.find(f => f.id === fileId);
+            return (
+              <div key={fileId} className="file-analysis-block">
+                <h3>{file?.name || fileId}</h3>
+                {loading.activities[fileId] && <p>Loading activities...</p>}
+                {fileActivities[fileId] && fileActivities[fileId].length > 0 && (
+                  <div className="activity-list">
+                    <h4>Activities:</h4>
+                    {fileActivities[fileId].map(activity => (
+                      <label key={activity} className="activity-item">
+                        <input
+                          type="checkbox"
+                          checked={selectedActivities[fileId]?.includes(activity) || false}
+                          onChange={(e) => handleActivityChange(fileId, activity, e.target.checked)}
+                        />
+                        {activity}
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {fileActivities[fileId] && fileActivities[fileId].length === 0 && (
+                  <p>No activities found in this file.</p>
+                )}
+                <div className="button-group">
+                  <button
+                    className="analyze-button"
+                    onClick={() => handleAnalyze(fileId)}
+                    disabled={loading.analysis[fileId] || !selectedActivities[fileId] || selectedActivities[fileId].length === 0}
+                  >
+                    {loading.analysis[fileId] ? 'Analyzing...' : 'Run Analysis'}
+                  </button>
+                  <button
+                    className="validate-button" // Nueva clase para el botón de validación
+                    onClick={() => handleTemporalValidation(fileId)}
+                    disabled={loading.validation[fileId] || !selectedActivities[fileId] || selectedActivities[fileId].length === 0}
+                  >
+                    {loading.validation[fileId] ? 'Validating...' : 'Temporal Validation'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      </div>
+
+      <section className="results-section">
+        <h2>Analysis Results</h2>
+        {selectedFileIds.length === 0 && <p className="info-text">Select and analyze a file to see results.</p>}
+        {selectedFileIds.map(fileId => {
+          const file = availableFiles.find(f => f.id === fileId);
+          const resultData = analysisResults[fileId];
+          const validationResult = temporalValidationData[fileId];
+
+          // Solo mostrar PlotViewer si hay resultados de análisis Y NO hay error en el análisis
+          const shouldShowPlotViewer = resultData && !resultData.error;
+          // Solo mostrar TemporalValidationResults si hay datos de validación Y NO hay error en la validación
+          const shouldShowValidation = validationResult && !validationResult.error;
+
+          return (
+            <div key={`results-${fileId}`} className="file-results-container">
+              {/* Mostrar el nombre del archivo solo si hay resultados o datos de validación para mostrar */}
+              {(shouldShowPlotViewer || shouldShowValidation) && <h3>Results for: {file?.name || fileId}</h3>}
+
+              {loading.analysis[fileId] && <p>Loading analysis for {file?.name || fileId}...</p>}
+              {loading.validation[fileId] && <p>Loading temporal validation for {file?.name || fileId}...</p>}
+              
+              {/* Mostrar resultados de validación temporal si existen */}
+              {shouldShowValidation && (
+                <TemporalValidationResults validationData={validationResult} />
+              )}
+              {validationResult && validationResult.error && (
+                <div className="error-message">
+                  <p>Temporal Validation Error for {file?.name || fileId}: {validationResult.error}</p>
+                </div>
+              )}
+
+              {/* Mostrar PlotViewer si hay resultados de análisis */}
+              {shouldShowPlotViewer && (
+                <PlotViewer
+                  fileName={file?.name || fileId}
+                  plotData={resultData} // plotData es todo el objeto de resultado del análisis
+                />
+              )}
+              {/* Mostrar error de análisis si existe */}
+              {resultData && resultData.error && (
+                 <div className="plot-viewer"> {/* Usar clase para consistencia de estilo */}
+                    <h3 className="file-heading">{file?.name || fileId}</h3>
+                    <div className="error-message">
+                        <p>{resultData.error}</p>
+                        {/* Opcionalmente, si tu backend devuelve plots incluso con error: */}
+                        {/* resultData.plots?.events && <img src={`data:image/png;base64,${resultData.plots.events}`} alt="Events Timeline (Error Context)" /> */}
+                    </div>
+                 </div>
+              )}
+              {!loading.analysis[fileId] && !resultData && selectedFileIds.includes(fileId) && (
+                <p className="info-text">Click "Run Analysis" for {file?.name || fileId} to see plots.</p>
+              )}
+            </div>
+          );
+        })}
+      </section>
     </div>
   );
 }
