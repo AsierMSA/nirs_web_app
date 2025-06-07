@@ -1,72 +1,45 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import '../styles/components.css';
 
 /**
- * Brain region visualization component with enhanced highlighting
+ * Brain region visualization component - simplified without highlighting
  */
 const BrainRegionsImage = ({ region }) => {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const containerRef = useRef(null);
-  const imageRef = useRef(null);
-  const [highlightPosition, setHighlightPosition] = useState({ x: 0, y: 0 });
-  
-  // Better region mapping with more precise positioning
-  useEffect(() => {
-    if (imageLoaded && containerRef.current) {
-      const container = containerRef.current;
-      const rect = container.getBoundingClientRect();
-      
-      // Improved positioning map for brain regions
-      let position = { x: 0.5, y: 0.5 }; // default center
-      
-      if (region === 'prefrontal') {
-        position = { x: 0.2, y: 0.2 };
-      } else if (region === 'central_frontal') {
-        position = { x: 0.5, y: 0.2 };
-      } else if (region === 'lateral_frontal') {
-        position = { x: 0.8, y: 0.2 };
-      } else if (region === 'motor') {
-        position = { x: 0.5, y: 0.4 };
-      } else if (region === 'temporal') {
-        position = { x: 0.8, y: 0.5 };
-      } else if (region === 'parietal') {
-        position = { x: 0.5, y: 0.6 };
-      }
-      
-      setHighlightPosition({
-        x: position.x * rect.width,
-        y: position.y * rect.height,
-        r: 30 // Radius of the highlight circle
-      });
-    }
-  }, [region, imageLoaded]);
-  
   return (
-    <div ref={containerRef} style={{ position: 'relative', width: '100%', maxWidth: '240px', height: '200px' }}>
+    <div style={{ position: 'relative', width: '100%', maxWidth: '240px', height: '200px' }}>
       <img
-        ref={imageRef}
         src="/assets/feature_importance.png" // Make sure this file exists in public/assets/
         alt="Brain Region Visualization"
-        style={{ width: '100%', height: '100%',objectPosition: 'top' }}
-        onLoad={() => setImageLoaded(true)}
+        style={{ width: '100%', height: '100%', objectPosition: 'top' }}
       />
-      
-      {imageLoaded && (
-        <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
-          <circle
-            cx={highlightPosition.x}
-            cy={highlightPosition.y}
-            r={highlightPosition.r}
-            fill="rgba(255, 87, 34, 0.2)" // Semi-transparent fill
-            stroke="#ff5722" // Orange stroke
-            strokeWidth={3}
-            opacity={0.8}
-          />
-        </svg>
-      )}
+      {/* ✅ ELIMINADO: Todo el código del círculo SVG */}
     </div>
   );
 };
+
+/**
+ * Helper function to safely render values that might be objects or strings
+ */
+function safeRenderValue(value) {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'object' && value !== null) {
+    // If it's an object, try to extract meaningful information
+    if (value.function) return value.function;
+    if (value.examples) return value.examples;
+    if (value.anatomical_areas) {
+      if (Array.isArray(value.anatomical_areas)) {
+        return value.anatomical_areas.join(', ');
+      }
+      return String(value.anatomical_areas);
+    }
+    // Fallback: convert to JSON string
+    return JSON.stringify(value);
+  }
+  // Fallback for other types
+  return String(value || '-');
+}
 
 /**
  * Main interpretation viewer component with enhanced scientific explanations
@@ -92,24 +65,19 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
           
           const parts = topFeature.split('_');
           const region = parts[0] || 'prefrontal'; // Default region if parsing fails
-          const wavelength = parts[1] || '850'; // Default wavelength
-          const timeWindow = parts[2] || 'early'; // Default time window
           
-          // Enhanced feature explanation with scientific context
           interpretationData.feature_explanations[topFeature] = {
             'region': region,
             'region_function': getRegionFunction(region),
-            'measure_description': getMeasureDescription(timeWindow, parts[3] || 'mean'),
-            'wavelength_meaning': wavelength === '850' ? 
-              '850nm wavelength - primarily sensitive to oxygenated hemoglobin (HbO)' : 
-              '760nm wavelength - primarily sensitive to deoxygenated hemoglobin (HbR)'
+            'measure_description': getMeasureDescription(topFeature),
+            'wavelength_meaning': getWavelengthMeaning(parts[1] || '850')
           };
           
           setSelectedFeature(topFeature);
         }
       }
-      // If no top features, select the first available feature
-      else if (interpretationData && interpretationData.feature_explanations) {
+      else if (interpretationData?.feature_explanations) {
+        // If no top features but we have explanations, select the first one
         const features = Object.keys(interpretationData.feature_explanations);
         if (features.length > 0) {
           setSelectedFeature(features[0]);
@@ -129,25 +97,26 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
         }
       }
     }, [interpretationData, topFeatures]); // Rerun when data or top features change
-    
-    // Display loading message if data is not yet available
+
     if (!interpretationData) {
       return (
         <div className="interpretation-container">
-          <h3 className="section-title">Results Interpretation</h3>
-          <p>Analysis in progress. Results will be available once processing is complete.</p>
+          <h3 className="section-title">Neurophysiological Interpretation</h3>
+          <p className="info-text">No interpretation data available. Please run the analysis first.</p>
         </div>
       );
     }
-    
-    // Extract data safely, providing defaults if missing
-    const region_descriptions = interpretationData.region_descriptions || {};
-    const feature_explanations = interpretationData.feature_explanations || {};
-    const event_descriptions = interpretationData.event_descriptions || createDefaultEventDescriptions();
-    
-    // Sort features: top features first, then alphabetically by region
-    const sortedFeatures = Object.keys(feature_explanations).sort((a, b) => {
-      // Prioritize top features
+
+    const { 
+      feature_explanations = {},
+      event_descriptions = {},
+      region_descriptions = {}
+    } = interpretationData;
+
+    // Sort features to show top features first
+    const allFeatures = Object.keys(feature_explanations);
+    const sortedFeatures = allFeatures.sort((a, b) => {
+      // Top features first
       if (topFeatures.includes(a) && !topFeatures.includes(b)) return -1;
       if (!topFeatures.includes(a) && topFeatures.includes(b)) return 1;
       
@@ -205,34 +174,35 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
                 {sortedFeatures.length > 0 ? (
                   <ul>
                       {/* Display top 15 features */}
-                      {sortedFeatures.slice(0, 15).map(feature => (
-                      <li 
+                      {sortedFeatures.slice(0, 15).map((feature) => (
+                        <li 
                           key={feature}
-                          className={`
-                          ${selectedFeature === feature ? 'selected' : ''} 
-                          ${topFeatures.length > 0 && feature === topFeatures[0] ? 'most-important' : ''}
-                          `}
-                          onClick={() => setSelectedFeature(feature)} // Select feature on click
-                      >
-                          {formatFeatureName(feature)} {/* Display formatted name */}
-                          {/* Highlight the most important feature */}
-                          {topFeatures.length > 0 && feature === topFeatures[0] && (
-                            <span className="top-badge">HIGHEST DISCRIMINATIVE POWER</span>
-                          )}
-                      </li>
+                          className={`feature-item ${selectedFeature === feature ? 'selected' : ''} ${topFeatures.includes(feature) ? 'top-feature' : ''}`}
+                          onClick={() => setSelectedFeature(feature)}
+                        >
+                          <span className="feature-name">{formatFeatureName(feature)}</span>
+                          {topFeatures.includes(feature) && <span className="top-badge">TOP</span>}
+                        </li>
                       ))}
+                      
+                      {/* Show count if more features available */}
+                      {sortedFeatures.length > 15 && (
+                        <li className="feature-count">
+                          ... and {sortedFeatures.length - 15} more features
+                        </li>
+                      )}
                   </ul>
-                  ) : (
-                  <p>No feature data available</p>
-                  )}
+                ) : (
+                  <p className="info-text">No features available for analysis</p>
+                )}
               </div>
               
-              {/* Details of the selected feature */}
+              {/* Feature details */}
               {selectedFeature && feature_explanations[selectedFeature] && (
                 <div className="feature-details">
                   <h4>{formatFeatureName(selectedFeature)}</h4>
                   <div className="detail-card">
-                    {/* Brain region image */}
+                    {/* Brain region image - ✅ SIN CÍRCULO */}
                     <div className="brain-image-container">
                       <BrainRegionsImage 
                         region={feature_explanations[selectedFeature].region} 
@@ -241,9 +211,9 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
                     {/* Textual explanation */}
                     <div className="explanation">
                       <p><strong>Brain Region:</strong> {capitalize(feature_explanations[selectedFeature].region || 'Unknown')}</p>
-                      <p><strong>Neural Function:</strong> {feature_explanations[selectedFeature].region_function || 'Unknown'}</p>
-                      <p><strong>Measurement:</strong> {feature_explanations[selectedFeature].measure_description || 'Unknown'}</p>
-                      <p><strong>NIRS Signal:</strong> {feature_explanations[selectedFeature].wavelength_meaning || 'Unknown'}</p>
+                      <p><strong>Neural Function:</strong> {safeRenderValue(feature_explanations[selectedFeature].region_function)}</p>
+                      <p><strong>Measurement:</strong> {safeRenderValue(feature_explanations[selectedFeature].measure_description)}</p>
+                      <p><strong>NIRS Signal:</strong> {safeRenderValue(feature_explanations[selectedFeature].wavelength_meaning)}</p>
                       <p><strong>Physiological Interpretation:</strong> {getPhysiologicalInterpretation(selectedFeature)}</p>
                     </div>
                   </div>
@@ -257,22 +227,26 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
             <div className="events-panel">
               <h4>Experimental Task Descriptions</h4>
               <p className="explanation-text">Each event represents a distinct cognitive or motor task presented during the NIRS recording session.</p>
-              <table className="event-table">
-                <thead>
-                  <tr>
-                    <th>Task Type</th>
-                    <th>Neurocognitive Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(event_descriptions).map(([event, description]) => (
-                    <tr key={event}>
-                      <td>{event}</td>
-                      <td>{description}</td>
+              {Object.keys(event_descriptions).length > 0 ? (
+                <table className="event-table">
+                  <thead>
+                    <tr>
+                      <th>Task Type</th>
+                      <th>Neurocognitive Description</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {Object.entries(event_descriptions).map(([event, description]) => (
+                      <tr key={event}>
+                        <td>{safeRenderValue(event)}</td>
+                        <td>{safeRenderValue(description)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="info-text">No experimental events data available.</p>
+              )}
               <p className="note"><strong>Note:</strong> Task duration typically ranges from 10-30 seconds with inter-stimulus intervals of 15-45 seconds to allow hemodynamic response to return to baseline.</p>
             </div>
           )}
@@ -282,25 +256,33 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
             <div className="regions-panel">
               <h4>Functional Neuroanatomy</h4>
               <p className="explanation-text">NIRS channels record hemodynamic activity from these cortical regions, each associated with specific cognitive and motor functions.</p>
-              <table className="region-table">
-                <thead>
-                  <tr>
-                    <th>Cortical Region</th>
-                    <th>Primary Functions</th>
-                    <th>Role in Experimental Tasks</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* Use enhanced descriptions */}
-                  {Object.entries(getEnhancedRegionDescriptions(region_descriptions)).map(([region, details]) => (
-                    <tr key={region}>
-                      <td>{capitalize(region)}</td>
-                      <td>{details.function || '-'}</td>
-                      <td>{details.examples || '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {(() => {
+                const enhancedRegions = getEnhancedRegionDescriptions(region_descriptions);
+                const regionEntries = Object.entries(enhancedRegions);
+                
+                return regionEntries.length > 0 ? (
+                  <table className="region-table">
+                    <thead>
+                      <tr>
+                        <th>Cortical Region</th>
+                        <th>Primary Functions</th>
+                        <th>Role in Experimental Tasks</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {regionEntries.map(([region, details]) => (
+                        <tr key={region}>
+                          <td>{capitalize(region)}</td>
+                          <td>{safeRenderValue(details?.function)}</td>
+                          <td>{safeRenderValue(details?.examples)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="info-text">No brain regions data available.</p>
+                );
+              })()}
             </div>
           )}
           
@@ -317,6 +299,7 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
                   </div>
                   <div className="accordion-content">
                     <ul>
+                      <li><strong>Preprocessing:</strong> Optical density conversion, motion artifact detection, and baseline correction</li>
                       <li><strong>Temporal Filtering:</strong> Bandpass (0.01-0.5 Hz) to isolate hemodynamic response and remove physiological noise</li>
                       <li><strong>Spatial Filtering:</strong> Channel-based signal quality assessment and selection</li>
                       <li><strong>Feature Extraction:</strong> Amplitude, slope, and mean values across multiple time windows (early: 1-4s, middle: 5-10s, late: 11-15s)</li>
@@ -397,6 +380,93 @@ function InterpretationViewer({ interpretationData, topFeatures=[] }) {
 }
 
 /**
+ * Format feature name for display
+ */
+function formatFeatureName(featureName) {
+  if (!featureName) return 'Unknown Feature';
+  
+  // Split by underscores and capitalize each part
+  const parts = featureName.split('_');
+  const formatted = parts.map(part => capitalize(part)).join(' ');
+  
+  return formatted;
+}
+
+/**
+ * Capitalize first letter of a string
+ */
+function capitalize(str) {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * Get enhanced region descriptions with detailed functionality
+ */
+function getEnhancedRegionDescriptions(regionDescriptions) {
+  const enhanced = {
+    'prefrontal': {
+      function: 'Executive control, working memory, attention regulation, decision-making',
+      examples: 'Planning complex movements, inhibiting inappropriate responses, maintaining task goals'
+    },
+    'central_frontal': {
+      function: 'Motor planning, cognitive control, response selection',
+      examples: 'Preparation for voluntary movement, conflict monitoring, task switching'
+    },
+    'motor': {
+      function: 'Primary motor execution, voluntary movement control',
+      examples: 'Finger movements, hand coordination, motor sequence execution'
+    },
+    'lateral_frontal': {
+      function: 'Language production, verbal working memory, cognitive flexibility',
+      examples: 'Speech generation, verbal task processing, semantic retrieval'
+    },
+    'temporal': {
+      function: 'Auditory processing, language comprehension, temporal sequence processing',
+      examples: 'Sound discrimination, speech understanding, rhythm perception'
+    },
+    'parietal': {
+      function: 'Spatial attention, sensorimotor integration, body awareness',
+      examples: 'Spatial coordination, tactile processing, movement guidance'
+    }
+  };
+
+  // Merge with backend descriptions if available
+  const merged = { ...enhanced };
+  
+  // Safely handle regionDescriptions that might have complex objects
+  if (regionDescriptions && typeof regionDescriptions === 'object') {
+    Object.keys(regionDescriptions).forEach(region => {
+      const description = regionDescriptions[region];
+      
+      if (merged[region]) {
+        // If description is a string, use it as function
+        if (typeof description === 'string') {
+          merged[region].function = description;
+        }
+        // If description is an object, extract meaningful parts
+        else if (typeof description === 'object' && description !== null) {
+          if (description.function) {
+            merged[region].function = safeRenderValue(description.function);
+          }
+          if (description.examples) {
+            merged[region].examples = safeRenderValue(description.examples);
+          }
+        }
+      } else {
+        // Create new entry for unknown regions
+        merged[region] = {
+          function: safeRenderValue(description) || 'Cortical processing',
+          examples: 'Various cognitive and motor tasks'
+        };
+      }
+    });
+  }
+
+  return merged;
+}
+
+/**
  * Get region function based on brain region name
  */
 function getRegionFunction(region) {
@@ -413,33 +483,46 @@ function getRegionFunction(region) {
 }
 
 /**
- * Get description for different measure and time window combinations
+ * Get measure description based on feature name
  */
-function getMeasureDescription(timeWindow, measureType) {
-  let timeDescription = '';
+function getMeasureDescription(featureName) {
+  const parts = featureName.split('_');
+  const timeWindow = parts[2] || '';
+  const measure = parts[3] || '';
   
-  switch(timeWindow) {
-    case 'early':
-      timeDescription = 'early response phase (1-4s post-stimulus)';
-      break;
-    case 'middle':
-      timeDescription = 'middle response phase (5-10s post-stimulus)';
-      break;
-    case 'late':
-      timeDescription = 'late response phase (11-15s post-stimulus)';
-      break;
-    default:
-      timeDescription = 'response period';
+  let description = '';
+  
+  if (timeWindow === 'early') {
+    description = 'Early hemodynamic response (1-4s post-stimulus)';
+  } else if (timeWindow === 'middle') {
+    description = 'Peak hemodynamic response (5-10s post-stimulus)';
+  } else if (timeWindow === 'late') {
+    description = 'Late hemodynamic response (11-15s post-stimulus)';
   }
   
-  const measures = {
-    'mean': `Average activation during ${timeDescription}`,
-    'slope': `Rate of change in hemodynamic response during ${timeDescription}`,
-    'peak': `Maximum amplitude of response during ${timeDescription}`,
-    'std': `Variability of hemodynamic signal during ${timeDescription}`
-  };
+  if (measure === 'mean') {
+    description += ' - average signal amplitude';
+  } else if (measure === 'slope') {
+    description += ' - rate of signal change';
+  } else if (measure === 'peak') {
+    description += ' - maximum signal amplitude';
+  } else if (measure === 'std') {
+    description += ' - signal variability';
+  }
   
-  return measures[measureType] || `Measurement of hemodynamic activity during ${timeDescription}`;
+  return description || 'Hemodynamic response measurement';
+}
+
+/**
+ * Get wavelength meaning
+ */
+function getWavelengthMeaning(wavelength) {
+  if (wavelength === '850') {
+    return '850nm wavelength - primarily sensitive to oxygenated hemoglobin (HbO), indicating increased neural activity';
+  } else if (wavelength === '760') {
+    return '760nm wavelength - primarily sensitive to deoxygenated hemoglobin (HbR), typically decreasing with neural activation';
+  }
+  return 'Near-infrared light wavelength for measuring hemodynamic changes';
 }
 
 /**
@@ -470,86 +553,6 @@ function getPhysiologicalInterpretation(featureName) {
   }
   
   return interpretation;
-}
-
-/**
- * Create default event descriptions if none are provided by the backend
- */
-function createDefaultEventDescriptions() {
-  return {
-    'Finger Sequencing': 'Sequential finger tapping task that engages fine motor control and motor sequence learning circuits primarily in motor and premotor cortices',
-    'Simple Tapping': 'Basic rhythmic finger tapping that activates primary motor cortex with minimal cognitive load',
-    'Motor Imagery': 'Mental simulation of movement without physical execution, engaging similar neural circuits as actual movement but with reduced primary motor activation',
-    'Rest': 'Baseline condition with no specific task demands, used as reference for hemodynamic response analysis',
-    'Working Memory': 'Mental manipulation and temporary storage of information, primarily engaging prefrontal and parietal cortical networks',
-    'Bimanual Coordination': 'Coordinated movement of both hands, requiring interhemispheric communication and increased cognitive-motor integration'
-  };
-}
-
-/**
- * Enhance region descriptions with more scientific detail, merging with defaults
- */
-function getEnhancedRegionDescriptions(existingDescriptions) {
-  // Default descriptions for common regions
-  const defaultDescriptions = {
-    'prefrontal': {
-      function: 'Executive function, working memory, decision-making, cognitive control',
-      examples: 'Active during complex problem-solving, task-switching, and inhibition tasks'
-    },
-    'motor': {
-      function: 'Movement planning and execution, motor sequence learning',
-      examples: 'Primary activation during finger tapping and coordination tasks'
-    },
-    'central_frontal': {
-      function: 'Cognitive control, response inhibition, action selection',
-      examples: 'Engaged during complex motor sequences and tasks requiring controlled responses'
-    },
-    'temporal': {
-      function: 'Auditory processing, language comprehension, semantic processing',
-      examples: 'Activated during verbal instructions and auditory stimuli processing'
-    },
-    'parietal': {
-      function: 'Spatial awareness, attention, sensorimotor integration',
-      examples: 'Important for visuomotor coordination and spatial aspects of tasks'
-    }
-  };
-  
-  // Merge existing descriptions from backend with defaults
-  const enhanced = {...defaultDescriptions};
-  Object.entries(existingDescriptions).forEach(([region, details]) => {
-    if (!enhanced[region]) {
-      // Add region if it's not in defaults
-      enhanced[region] = details;
-    } else {
-      // Merge details, prioritizing existing over default if available
-      enhanced[region] = {
-        ...enhanced[region],
-        function: details.function || enhanced[region].function,
-        examples: details.examples || enhanced[region].examples
-      };
-    }
-  });
-  
-  return enhanced;
-}
-
-/**
- * Format a feature name for display by capitalizing each word
- */
-function formatFeatureName(name) {
-  if (!name) return '';
-  return name
-    .split('_') // Split by underscore
-    .map(word => capitalize(word)) // Capitalize each part
-    .join(' '); // Join with spaces
-}
-
-/**
- * Capitalize the first letter of a string
- */
-function capitalize(str) {
-  if (!str) return '';
-  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 export default InterpretationViewer;

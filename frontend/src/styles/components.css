@@ -1,157 +1,552 @@
 /* Add import for the plot-viewer styles */
 @import './plot-viewer.css';
 
-/* Component-specific styling */
+/* ✅ FILE LIST CON SCROLL HORIZONTAL */
+.file-list {
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: auto; /* ✅ AÑADIR SCROLL HORIZONTAL */
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  background: #f8f9fa;
+  white-space: nowrap; /* ✅ EVITAR WRAP DE TEXTO */
+}
 
-/* FileUploader */
-.file-uploader {
-    margin-bottom: 20px;
-  }
-  
-  .file-input-container {
-    display: flex;
-    align-items: center;
-    margin-bottom: 10px;
-  }
-  
-  .upload-button {
-    background-color: #27ae60;
-    color: white;
-    border: none;
-    padding: 8px 15px;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-left: 10px;
-    transition: background-color 0.2s;
-  }
-  
-  .upload-button:hover {
-    background-color: #219653;
-  }
-  
-  .upload-button:disabled {
-    background-color: #95a5a6;
-    cursor: not-allowed;
-  }
-  
-  .file-info {
-    font-size: 14px;
-    color: #34495e;
-  }
-  
-  /* FileList */
-  .file-list {
-    max-height: 300px;
-    overflow-y: auto;
-  }
-  
-  .file-list ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
-  
-  .file-item {
-    padding: 8px 0;
-    border-bottom: 1px solid #f0f0f0;
-  }
-  
-  .file-label {
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-  }
-  
-  .file-name {
-    margin-left: 10px;
-  }
-  
-  /* ActivitySelector */
-  .activity-selector {
-    margin-bottom: 20px;
-    padding-bottom: 15px;
-    border-bottom: 1px dashed #ddd;
-  }
-  
-  .file-heading {
-    color: #34495e;
-    margin-top: 0;
-    margin-bottom: 10px;
-    font-size: 18px;
-  }
-  
-  .activity-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 10px;
-  }
-  
-  .activity-item {
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-  }
-  
-  .activity-name {
-    margin-left: 8px;
-  }
-  
-  .activity-loader {
-    color: #7f8c8d;
-    padding: 10px 0;
-  }
-  
-  .activity-error {
-    color: #e74c3c;
-    padding: 10px 0;
-  }
-  
-  /* PlotViewer */
-  .plot-viewer {
-    margin-bottom: 30px;
-    padding-bottom: 20px;
-    border-bottom: 2px solid #eaeaea;
-  }
-  
-  .plots-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 20px;
-  }
-  
-  .plot-item {
-    border: 1px solid #eaeaea;
-    border-radius: 5px;
-    padding: 10px;
-  }
-  
-  .plot-item h4 {
-    margin-top: 0;
-    color: #2c3e50;
-    text-align: center;
-  }
-  
-  .image-container {
-    text-align: center;
-  }
-  
-  .plot-image {
-    max-width: 100%;
-    height: auto;
-    border-radius: 5px;
-  }
-  
-  .analysis-message {
-    margin-top: 15px;
-    padding: 10px;
-    background-color: #e8f4f8;
-    border-radius: 5px;
-    color: #2980b9;
-  }
-  /* Add to your existing CSS file */
+.file-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  min-width: max-content; /* ✅ PERMITIR ANCHO NECESARIO */
+}
 
-/* Styles for the expanded image modal */
-.expanded-image-overlay {
+.file-item {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background-color 0.2s ease;
+  min-width: 400px; /* ✅ ANCHO MÍNIMO PARA NOMBRES LARGOS */
+  white-space: nowrap;
+}
+
+.file-item:hover {
+  background-color: #e9ecef;
+}
+
+.file-item:last-child {
+  border-bottom: none;
+}
+
+.file-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+.file-name {
+  margin-left: 8px;
+  font-weight: 500;
+  color: #495057;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis; /* ✅ TRUNCAR TEXTO LARGO */
+  max-width: 300px; /* ✅ LIMITAR ANCHO */
+}
+
+.delete-button {
+  background: none;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  flex-shrink: 0; /* ✅ NO ENCOGER */
+}
+
+.delete-button:hover {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+/* ✅ ACTIVITY SELECTOR COMPACTO */
+.activity-selector {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+.file-heading {
+  color: #343a40;
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 6px;
+}
+
+.activity-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 5px;
+  transition: background-color 0.2s ease;
+}
+
+.activity-item:hover {
+  background-color: #f8f9fa;
+}
+
+.activity-name {
+  margin-left: 6px;
+  font-size: 13px;
+  color: #495057;
+}
+
+.activity-loader, .activity-error {
+  padding: 12px;
+  text-align: center;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.activity-loader {
+  color: #6c757d;
+  background: #f8f9fa;
+}
+
+.activity-error {
+  color: #721c24;
+  background: #f8d7da;
+}
+
+/* ✅ PLOT VIEWER COMPACTO */
+.plot-viewer {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 25px;
+  overflow: hidden;
+}
+
+.plot-viewer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.plot-viewer-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.view-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.view-toggle {
+  padding: 6px 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border-radius: 15px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.view-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.view-toggle.active {
+  background: white;
+  color: #667eea;
+}
+
+/* ✅ PLOTS CONTAINER COMPACTO */
+.plots-container {
+  padding: 15px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 15px;
+}
+
+.plot-item {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 12px;
+  transition: all 0.3s ease;
+}
+
+.plot-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.plot-item h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #343a40;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.image-container {
+  text-align: center;
+  border-radius: 6px;
+  overflow: hidden;
+  background: white;
+  padding: 8px;
+}
+
+.plot-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  transition: transform 0.2s ease;
+}
+
+.plot-image:hover {
+  transform: scale(1.01);
+}
+
+/* ✅ TAMAÑOS DE PLOT APROPIADOS */
+.plot-item-small {
+  max-width: 350px;
+  margin: 0 auto;
+}
+
+.plot-item-medium {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.plot-item-large {
+  grid-column: 1 / -1;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+/* ✅ SCROLLABLE CONTAINERS */
+.scrollable-plot-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  background: white;
+  margin-bottom: 8px;
+  max-height: 400px;
+}
+
+.scrollable-plot-container .plot-image {
+  max-width: none;
+  height: auto;
+  display: block;
+  max-height: 380px;
+}
+
+.scroll-hint {
+  font-size: 0.75rem;
+  color: #6c757d;
+  text-align: center;
+  padding: 6px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+/* ✅ ESTILOS PARA INTERPRETATION VIEWER */
+.interpretation-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 25px;
+  overflow: hidden;
+}
+
+.section-title {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  margin: 0;
+  padding: 15px 20px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.tabs {
+  display: flex;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  flex-wrap: wrap;
+}
+
+.tab {
+  background: none;
+  border: none;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #6c757d;
+  border-bottom: 3px solid transparent;
+  transition: all 0.3s ease;
+  flex: 1;
+  min-width: 120px;
+}
+
+.tab:hover {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.tab.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+  background: white;
+}
+
+.tab-content {
+  padding: 20px;
+}
+
+.features-panel {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 20px;
+}
+
+.feature-list {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 15px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.feature-list h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: #495057;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.help-button {
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-button:hover {
+  background: #495057;
+}
+
+.feature-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.feature-item {
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.feature-item:hover {
+  background: #e9ecef;
+}
+
+.feature-item.selected {
+  background: #667eea;
+  color: white;
+}
+
+.feature-item.top-feature {
+  border-left: 4px solid #28a745;
+}
+
+.feature-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.top-badge {
+  background: #28a745;
+  color: white;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: bold;
+}
+
+.feature-count {
+  font-style: italic;
+  color: #6c757d;
+  font-size: 0.8rem;
+  text-align: center;
+  padding: 8px;
+}
+
+.feature-details {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 15px;
+}
+
+.feature-details h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #495057;
+  font-size: 1rem;
+}
+
+.detail-card {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 15px;
+  align-items: start;
+}
+
+.brain-image-container {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+}
+
+.explanation p {
+  margin: 8px 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.explanation strong {
+  color: #495057;
+}
+
+/* ✅ ESTILOS PARA OTRAS TABS */
+.events-panel, .regions-panel, .processing-panel {
+  max-width: 100%;
+}
+
+.explanation-text {
+  color: #6c757d;
+  font-size: 0.9rem;
+  margin-bottom: 15px;
+  line-height: 1.5;
+}
+
+.event-table, .region-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 15px 0;
+  font-size: 0.9rem;
+}
+
+.event-table th, .region-table th,
+.event-table td, .region-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.event-table th, .region-table th {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+}
+
+.note {
+  background: #e8f4f8;
+  border-left: 4px solid #17a2b8;
+  padding: 12px;
+  margin: 15px 0;
+  font-size: 0.9rem;
+  border-radius: 4px;
+}
+
+.accordion {
+  margin-top: 15px;
+}
+
+.accordion-item {
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.accordion-header {
+  background: #f8f9fa;
+  padding: 12px 15px;
+  font-weight: 600;
+  color: #495057;
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  transition: background-color 0.2s ease;
+}
+
+.accordion-header:hover {
+  background: #e9ecef;
+}
+
+.accordion-content {
+  padding: 15px;
+  background: white;
+}
+
+.accordion-content ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.accordion-content li {
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* ✅ MODAL STYLES */
+.modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -165,305 +560,46 @@
   padding: 20px;
 }
 
-.expanded-image-container {
-  background-color: white;
+.modal-content {
+  background: white;
   border-radius: 8px;
-  overflow: hidden;
-  max-width: 90%;
-  max-height: 90%;
-  display: flex;
-  flex-direction: column;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
 }
 
-.expanded-image-header {
+.modal-header {
+  background: #667eea;
+  color: white;
+  padding: 15px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 15px;
-  background-color: #f5f5f5;
-  border-bottom: 1px solid #ddd;
 }
 
-.expanded-image-header h3 {
+.modal-header h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 1.1rem;
 }
 
 .close-button {
   background: none;
   border: none;
+  color: white;
   font-size: 24px;
   cursor: pointer;
-  padding: 0 5px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
 }
 
 .close-button:hover {
-  color: #d32f2f;
-}
-
-.expanded-image {
-  max-width: 100%;
-  max-height: calc(90vh - 60px); /* Adjust for header */
-  object-fit: contain;
-  padding: 10px;
-}
-
-/* Improve the appearance of clickable images */
-.plot-image {
-  transition: transform 0.2s ease;
-}
-
-.plot-image:hover {
-  transform: scale(1.03);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-/* Add to your existing CSS */
-
-/* Special styling for large plots like event plots */
-.plot-item-large {
-  grid-column: 1 / -1; /* Make it span the full width */
-  margin: 0 0 30px 0;
-}
-
-.image-container-large {
-  width: 100%;
-  margin: 0 auto;
-  padding: 10px;
-}
-
-/* Improve the expanded view sizing */
-.expanded-image-container {
-  max-width: 90%;
-  max-height: 90%;
-  width: auto;
-  background-color: white;
-  border-radius: 5px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.expanded-image {
-  max-width: 100%;
-  max-height: calc(90vh - 60px);
-  object-fit: contain;
-  padding: 15px;
-}
-/* Interpretation Viewer Styles */
-.interpretation-container {
-  margin-top: 20px;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.section-title {
-  background-color: #f0f8ff;
-  padding: 10px 15px;
-  margin: 0;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.tabs {
-  display: flex;
-  border-bottom: 1px solid #e0e0e0;
-  background-color: #f5f5f5;
-}
-
-.tab {
-  padding: 10px 15px;
-  border: none;
-  background-color: transparent;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.tab.active {
-  background-color: white;
-  border-bottom: 2px solid #4285f4;
-}
-
-.tab-content {
-  padding: 15px;
-  background-color: white;
-}
-
-/* Feature Panel */
-.features-panel {
-  display: flex;
-  gap: 20px;
-}
-
-.feature-list {
-  width: 250px;
-  border-right: 1px solid #e0e0e0;
-  padding-right: 15px;
-}
-
-.feature-list h4 {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.help-button {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background-color: #4285f4;
-  color: white;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.feature-list ul {
-  list-style: none;
-  padding: 0;
-}
-
-.feature-list li {
-  padding: 8px 5px;
-  margin-bottom: 2px;
-  background-color: #f9f9f9;
-  cursor: pointer;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.feature-list li.selected {
-  background-color: #e3f2fd;
-  border-left: 3px solid #4285f4;
-}
-
-.feature-details {
-  flex: 1;
-}
-
-.detail-card {
-  display: flex;
-  gap: 20px;
-  padding: 15px;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  background-color: #f9f9f9;
-}
-
-.brain-image-container {
-  position: relative;
-  width: 200px;
-  height: 200px;
-}
-
-.brain-image-container img {
-  max-width: 100%;
-}
-
-.highlight {
-  position: absolute;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  border: 2px solid #ff5722;
-  opacity: 0.7;
-}
-
-.highlight.frontal {
-  top: 20px;
-  left: 70px;
-}
-
-.highlight.temporal {
-  top: 80px;
-  left: 140px;
-}
-
-.highlight.parietal {
-  top: 50px;
-  left: 110px;
-}
-
-.explanation {
-  flex: 1;
-}
-
-/* Event and Region Tables */
-.event-table, .region-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.event-table th, .event-table td,
-.region-table th, .region-table td {
-  padding: 8px 15px;
-  text-align: left;
-  border: 1px solid #e0e0e0;
-}
-
-.event-table th, .region-table th {
-  background-color: #f5f5f5;
-}
-
-/* Processing Panel */
-.accordion {
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.accordion-item {
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.accordion-item:last-child {
-  border-bottom: none;
-}
-
-.accordion-header {
-  padding: 12px 15px;
-  background-color: #f5f5f5;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.accordion-content {
-  padding: 15px;
-  background-color: white;
-}
-
-/* Modal */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background-color: white;
-  border-radius: 4px;
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.modal-header {
-  padding: 15px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.modal-header h3 {
-  margin: 0;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .modal-body {
@@ -471,183 +607,261 @@
 }
 
 .modal-body code {
-  background-color: #f5f5f5;
-  padding: 2px 5px;
-  border-radius: 3px;
-}
-.feature-importance-container {
-  margin: 20px 0;
-  padding: 15px;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.feature-importance-img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-  margin: 0 auto;
-}
-
-.image-container {
-  position: relative;
-  margin-bottom: 15px;
-}
-
-.top-features-list {
-  margin-top: 15px;
-}
-
-.most-important {
-  color: #ff5722;
-  font-weight: bold;
-}
-
-.top-badge {
-  background-color: #ff5722;
-  color: white;
-  font-size: 10px;
+  background: #f8f9fa;
   padding: 2px 6px;
-  border-radius: 10px;
-  margin-left: 8px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  color: #d63384;
 }
-.file-item {
-  padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
+
+.modal-body h4 {
+  color: #495057;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+.modal-body ul {
+  padding-left: 20px;
+}
+
+.modal-body li {
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+/* ✅ EXPANDED IMAGE MODAL */
+.expanded-image-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.expanded-image-container {
+  background-color: white;
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 95%;
+  max-height: 95%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.expanded-image-header {
+  padding: 15px 20px;
+  background: #343a40;
+  color: white;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.file-label {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  flex-grow: 1;
+.expanded-image-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
 }
 
-.delete-button {
-  background: none;
-  border: none;
-  color: #d32f2f;
-  cursor: pointer;
-  padding: 5px;
-  margin-left: 10px;
-  opacity: 0.7;
-  transition: opacity 0.2s;
-}
-
-.delete-button:hover {
-  opacity: 1;
-}
-
-.confirmation-dialog {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: white;
+.expanded-image {
+  max-width: 100%;
+  max-height: calc(95vh - 80px);
+  object-fit: contain;
   padding: 20px;
-  border-radius: 5px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  z-index: 1000;
-  text-align: center;
 }
 
-.confirmation-buttons {
+/* ✅ RESPONSIVE DESIGN */
+@media (max-width: 1024px) {
+  .plots-container {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    padding: 12px;
+    gap: 12px;
+  }
+  
+  .plot-item-medium {
+    max-width: 100%;
+  }
+  
+  .plot-item-large {
+    max-width: 100%;
+  }
+  
+  .features-panel {
+    grid-template-columns: 1fr;
+  }
+  
+  .detail-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .plots-container {
+    grid-template-columns: 1fr;
+    padding: 10px;
+    gap: 10px;
+  }
+  
+  .plot-viewer-header {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+    padding: 12px;
+  }
+  
+  .view-controls {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .activity-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .button-group {
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .scrollable-plot-container {
+    max-height: 300px;
+  }
+  
+  .tabs {
+    flex-direction: column;
+  }
+  
+  .tab {
+    flex: none;
+  }
+  
+  .tab-content {
+    padding: 15px;
+  }
+  
+  .file-item {
+    min-width: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .scrollable-plot-container {
+    max-height: 250px;
+  }
+  
+  .file-item {
+    min-width: 250px;
+  }
+  
+  .file-name {
+    max-width: 180px;
+  }
+  .file-uploader {
+  margin-bottom: 20px;
+}
+
+.file-input-container {
   display: flex;
-  justify-content: center;
   gap: 10px;
-  margin-top: 15px;
+  align-items: center;
+  margin-bottom: 10px;
 }
 
-.confirmation-buttons button {
-  padding: 5px 15px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.confirmation-buttons button:nth-child(1) {
-  background-color: #d32f2f;
+.upload-button {
+  background-color: #007bff;
   color: white;
   border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
 }
 
-.confirmation-buttons button:nth-child(2) {
-  background-color: #e0e0e0;
+.upload-button:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.upload-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.file-info {
+  color: #6c757d;
+  font-size: 0.9rem;
+  margin-top: 5px;
+}
+@media (max-width: 480px) {
+  .scrollable-plot-container {
+    max-height: 250px;
+  }
+  
+  .file-item {
+    min-width: 250px;
+  }
+  
+  .file-name {
+    max-width: 180px;
+  }
+}
+
+/* ✅ FILE UPLOADER STYLES - MOVIDO FUERA DEL MEDIA QUERY */
+.file-uploader {
+  margin-bottom: 20px;
+}
+
+.file-input-container {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.upload-button {
+  background-color: #007bff;
+  color: white;
   border: none;
-}
-/* ...existing styles... */
-
-/* Container for horizontal scrolling on Events Plot */
-.scrollable-events-container {
-  overflow-x: auto; /* Enable horizontal scroll */
-  overflow-y: hidden; /* Prevent vertical scroll if image is tall */
-  width: 100%; /* Take full width of the plot-item */
-  max-width: 100%; /* Ensure it doesn't overflow its parent */
-  border: 1px solid #eee; /* Optional: add border to indicate scroll area */
-  margin-bottom: 5px; /* Space before scroll hint */
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
 }
 
-/* Style for the Events Plot image itself inside the scrollable container */
-.plot-image-events {
-  display: block; /* Prevents extra space below image */
-  /* Set a minimum width or let it be natural width if larger than container */
-  /* min-width: 1200px; /* Example: Force a minimum width to ensure scrolling */
-  /* Or let the image determine its width naturally */
-  max-width: none; /* Allow image to exceed container width */
-  height: auto; /* Maintain aspect ratio */
-  object-fit: contain; /* Adjust as needed */
+.upload-button:hover:not(:disabled) {
+  background-color: #0056b3;
 }
 
-
-/* Ensure the large plot item accommodates the scrollbar */
-.plot-item-large {
-  width: 100%; /* Takes full width */
-  margin-bottom: 20px; /* Spacing below */
+.upload-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
 }
 
-/* Adjust image container if needed */
-.image-container-large {
-  /* Remove fixed height/width if handled by image or scroll container */
-  /* width: 100%; */ /* Might not be needed if scroll container handles width */
-  /* max-height: 500px; */ /* Might be redundant if image style handles it */
-  display: inline-block; /* Important for the scroll container */
-  vertical-align: top; /* Align image to top */
-}
-
-
-/* Style for the scroll hint */
-.scroll-hint {
-  font-size: 0.8em;
-  color: #666;
-  text-align: center;
+.file-info {
+  color: #6c757d;
+  font-size: 0.9rem;
   margin-top: 5px;
 }
 
-
-/* Styles for Channels Plot Scroll */
-.scrollable-channels-container {
-  max-height: 600px; /* Limit height */
-  overflow-y: auto; /* Enable vertical scroll */
-  overflow-x: hidden; /* Disable horizontal scroll */
-  border: 1px solid #eee; /* Optional: border */
-  width: 100%;
-  margin-bottom: 5px;
+/* ✅ ESTILOS PARA EL INPUT DE ARCHIVO */
+#file-input {
+  padding: 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background-color: white;
+  font-size: 14px;
+  cursor: pointer;
 }
 
-.image-container-channels {
-   /* Container for the image */
-   width: 100%; /* Ensure it fills the scrollable container width */
+#file-input:disabled {
+  background-color: #e9ecef;
+  cursor: not-allowed;
 }
-
-.plot-image-channels {
-  display: block;
-  width: 100%; /* Make image fill container width */
-  height: auto; /* Maintain aspect ratio */
-  object-fit: contain; /* Or 'cover' or 'fill' depending on desired effect */
 }
-
-
-/* ...rest of the styles... */

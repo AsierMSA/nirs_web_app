@@ -13,6 +13,261 @@ import io
 import base64
 import traceback
 
+def create_connectivity_plot(raw_data, feature_result):
+    """Create connectivity matrix visualization between channels"""
+    try:
+        print("=== DEBUGGING: Creating connectivity plot ===")
+        
+        # Verificar seaborn
+        try:
+            import seaborn as sns
+            print("✓ Seaborn imported successfully")
+        except ImportError as e:
+            print(f"✗ Error importing seaborn: {e}")
+            return None
+        
+        # Extract channel data
+        data_chunks = feature_result.get('data_chunks', [])
+        print(f"Data chunks available: {len(data_chunks)}")
+        
+        if not data_chunks:
+            print("✗ No data chunks available for connectivity plot")
+            return None
+            
+        # Calculate correlation matrix between channels
+        all_data = np.concatenate(data_chunks, axis=1)  # Concatenate across time
+        print(f"All data shape after concatenation: {all_data.shape}")
+        
+        n_channels = min(20, all_data.shape[0])  # Limit to first 20 channels
+        selected_data = all_data[:n_channels, :]
+        print(f"Selected data shape: {selected_data.shape}")
+        
+        # Verificar que hay suficientes datos
+        if selected_data.shape[1] < 2:
+            print("✗ Insufficient time points for correlation")
+            return None
+        
+        # Calculate correlation matrix
+        corr_matrix = np.corrcoef(selected_data)
+        print(f"Correlation matrix shape: {corr_matrix.shape}")
+        
+        # Create heatmap
+        fig, ax = plt.subplots(figsize=(12, 10))
+        mask = np.triu(np.ones_like(corr_matrix, dtype=bool))  # Hide upper triangle
+        
+        sns.heatmap(corr_matrix, mask=mask, annot=True, cmap='coolwarm', 
+                   center=0, square=True, fmt='.2f',
+                   xticklabels=raw_data.ch_names[:n_channels],
+                   yticklabels=raw_data.ch_names[:n_channels],
+                   cbar_kws={"shrink": .8})
+        
+        ax.set_title('Channel Connectivity Matrix (Pearson Correlation)', 
+                    fontsize=14, pad=20)
+        plt.xticks(rotation=45, ha='right')
+        plt.yticks(rotation=0)
+        plt.tight_layout()
+        
+        result = encode_figure_to_base64(fig)
+        print(f"✓ Connectivity plot created successfully: {len(result) if result else 0} characters")
+        return result
+        
+    except Exception as e:
+        print(f"✗ Error creating connectivity plot: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+    
+def create_spectral_analysis_plot(raw_data, event_activations):
+    """Create spectral analysis visualization"""
+    try:
+        print("=== DEBUGGING: Creating spectral analysis plot ===")
+        
+        # Verificar scipy
+        try:
+            from scipy import signal
+            print("✓ Scipy imported successfully")
+        except ImportError as e:
+            print(f"✗ Error importing scipy: {e}")
+            return None
+        
+        fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+        
+        # Select representative channels
+        n_channels = min(4, len(raw_data.ch_names))
+        selected_channels = raw_data.ch_names[:n_channels]
+        print(f"Selected channels for spectral analysis: {selected_channels}")
+        
+        for i, ch_name in enumerate(selected_channels):
+            ax = axes[i//2, i%2]
+            
+            # Get channel data
+            ch_idx = raw_data.ch_names.index(ch_name)
+            data = raw_data.get_data()[ch_idx, :]
+            print(f"Channel {ch_name} data shape: {data.shape}, sampling freq: {raw_data.info['sfreq']}")
+            
+            # Verificar que hay suficientes datos
+            if len(data) < 256:
+                print(f"Warning: Channel {ch_name} has insufficient data for spectral analysis")
+                continue
+            
+            # Calculate power spectral density
+            freqs, psd = signal.welch(data, raw_data.info['sfreq'], 
+                                    nperseg=min(256, len(data)//4))
+            
+            print(f"Frequency range: {freqs[0]:.4f} - {freqs[-1]:.4f} Hz")
+            
+            # Plot only relevant frequency range for NIRS (0.01-0.5 Hz)
+            freq_mask = (freqs >= 0.01) & (freqs <= 0.5)
+            
+            if not np.any(freq_mask):
+                print(f"Warning: No frequencies in NIRS range for channel {ch_name}")
+                continue
+            
+            ax.loglog(freqs[freq_mask], psd[freq_mask], 'b-', linewidth=2)
+            ax.set_xlabel('Frequency (Hz)')
+            ax.set_ylabel('Power Spectral Density')
+            ax.set_title(f'Channel {ch_name}')
+            ax.grid(True, alpha=0.3)
+            
+            # Add frequency band annotations
+            ax.axvspan(0.01, 0.08, alpha=0.2, color='red', label='Systemic')
+            ax.axvspan(0.08, 0.15, alpha=0.2, color='green', label='Respiratory')
+            ax.axvspan(0.15, 0.4, alpha=0.2, color='blue', label='Cardiac')
+            
+            if i == 0:
+                ax.legend()
+        
+        plt.suptitle('Spectral Analysis by Channel', fontsize=16)
+        plt.tight_layout()
+        
+        result = encode_figure_to_base64(fig)
+        print(f"✓ Spectral analysis plot created successfully: {len(result) if result else 0} characters")
+        return result
+        
+    except Exception as e:
+        print(f"✗ Error creating spectral analysis plot: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+    
+def create_signal_quality_plot(raw_data):
+    """Create signal quality assessment visualization"""
+    try:
+        print("=== DEBUGGING: Creating signal quality plot ===")
+        
+        # Verificar scipy
+        try:
+            from scipy import signal as sp_signal
+            print("✓ Scipy signal imported successfully")
+        except ImportError as e:
+            print(f"✗ Error importing scipy signal: {e}")
+            return None
+        
+        fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+        
+        # Get all channel data
+        data = raw_data.get_data()
+        print(f"Signal quality analysis: {data.shape[0]} channels, {data.shape[1]} time points")
+        
+        # Verificar que hay suficientes datos
+        if data.shape[1] < 100:
+            print("✗ Insufficient time points for signal quality analysis")
+            return None
+        
+        # 1. Signal-to-Noise Ratio per channel
+        ax1 = axes[0, 0]
+        snr_values = []
+        
+        for i, ch_name in enumerate(raw_data.ch_names):
+            try:
+                signal_power = np.var(data[i, :])
+                
+                # Verificar frecuencia de muestreo válida
+                if raw_data.info['sfreq'] <= 1.0:
+                    print(f"Warning: Very low sampling frequency: {raw_data.info['sfreq']} Hz")
+                    # Use a simpler noise estimation
+                    noise_power = np.var(np.diff(data[i, :]))
+                else:
+                    # Estimate noise as high-frequency component
+                    try:
+                        nyquist = raw_data.info['sfreq'] / 2
+                        high_freq = min(0.5, nyquist * 0.8)  # Use 80% of Nyquist or 0.5 Hz
+                        b, a = sp_signal.butter(4, high_freq / nyquist, 'high')
+                        noise = sp_signal.filtfilt(b, a, data[i, :])
+                        noise_power = np.var(noise)
+                    except Exception as filter_e:
+                        print(f"Filter error for channel {ch_name}: {filter_e}")
+                        noise_power = np.var(np.diff(data[i, :]))
+                
+                snr = 10 * np.log10(signal_power / (noise_power + 1e-12))
+                snr_values.append(snr)
+                
+            except Exception as ch_e:
+                print(f"Error processing channel {ch_name}: {ch_e}")
+                snr_values.append(0)
+        
+        print(f"SNR values calculated: min={min(snr_values):.2f}, max={max(snr_values):.2f}")
+        
+        ax1.bar(range(len(snr_values)), snr_values)
+        ax1.set_xlabel('Channel Index')
+        ax1.set_ylabel('SNR (dB)')
+        ax1.set_title('Signal-to-Noise Ratio by Channel')
+        ax1.axhline(y=10, color='r', linestyle='--', label='Good Quality Threshold')
+        ax1.legend()
+        
+        # 2. Signal variance distribution
+        ax2 = axes[0, 1]
+        variances = np.var(data, axis=1)
+        ax2.hist(variances, bins=20, alpha=0.7, edgecolor='black')
+        ax2.set_xlabel('Signal Variance')
+        ax2.set_ylabel('Number of Channels')
+        ax2.set_title('Signal Variance Distribution')
+        ax2.axvline(np.mean(variances), color='r', linestyle='--', label='Mean')
+        ax2.legend()
+        
+        # 3. Correlation with mean signal (artifact detection)
+        ax3 = axes[1, 0]
+        mean_signal = np.mean(data, axis=0)
+        correlations = []
+        
+        for i in range(data.shape[0]):
+            try:
+                corr = np.corrcoef(data[i, :], mean_signal)[0, 1]
+                if np.isnan(corr):
+                    corr = 0.0
+                correlations.append(corr)
+            except Exception as corr_e:
+                print(f"Correlation error for channel {i}: {corr_e}")
+                correlations.append(0.0)
+        
+        ax3.bar(range(len(correlations)), correlations)
+        ax3.set_xlabel('Channel Index')
+        ax3.set_ylabel('Correlation with Mean')
+        ax3.set_title('Correlation with Mean Signal (Artifact Detection)')
+        ax3.axhline(y=0.8, color='r', linestyle='--', label='High Artifact Threshold')
+        ax3.legend()
+        
+        # 4. Signal amplitude distribution
+        ax4 = axes[1, 1]
+        amplitudes = np.std(data, axis=1)
+        ax4.bar(range(len(amplitudes)), amplitudes)
+        ax4.set_xlabel('Channel Index')
+        ax4.set_ylabel('Signal Amplitude (std)')
+        ax4.set_title('Signal Amplitude by Channel')
+        
+        plt.suptitle('Signal Quality Assessment', fontsize=16)
+        plt.tight_layout()
+        
+        result = encode_figure_to_base64(fig)
+        print(f"✓ Signal quality plot created successfully: {len(result) if result else 0} characters")
+        return result
+        
+    except Exception as e:
+        print(f"✗ Error creating signal quality plot: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+    
 def map_numeric_annotations_to_descriptive(raw_data, annotation_map=None):
     """
     Map numeric annotations in a raw NIRS file to descriptive labels.
@@ -677,25 +932,44 @@ def extract_features_from_events(raw_data, valid_events, event_ids, tmin=-5.0, t
          if X_features.shape[1] < len(feature_names):
              print("  Truncating feature names list.")
              feature_names = feature_names[:X_features.shape[1]]
-         # else: # X_features is wider - this indicates a bigger problem, maybe return error
-         #     return {'error': 'Feature matrix shape mismatch'}
+    print("=== DEBUGGING: Creating advanced plots ===")
+    
+    # Crear plots avanzados con debugging
+    connectivity_plot = create_connectivity_plot(raw_data, {'data_chunks': data_chunks})
+    print(f"Connectivity plot result: {'SUCCESS' if connectivity_plot else 'FAILED'}")
+    
+    spectral_plot = create_spectral_analysis_plot(raw_data, event_activations)
+    print(f"Spectral plot result: {'SUCCESS' if spectral_plot else 'FAILED'}")
+    
+    quality_plot = create_signal_quality_plot(raw_data)
+    print(f"Quality plot result: {'SUCCESS' if quality_plot else 'FAILED'}")
 
-
-    return {
+    features_result = {
         'X_features': X_features,
         'feature_names': feature_names,
         'labels': labels,
         'condition_names': condition_names,
         'time_points': time_points,
+        'data_chunks': data_chunks,  
         'plots': {
             'average_response': avg_response_plot,
-            'channels': channels_plot
+            'channels': channels_plot,
+            'connectivity': connectivity_plot,
+            'spectral_analysis': spectral_plot,
+            'signal_quality': quality_plot
         },
         'region_data': region_data,
-        'event_activations': event_activations, # <-- ADDED: Pass per-event activations
+        'event_activations': event_activations,
         'n_events': len(valid_events),
         'event_ids': event_ids
     }
+
+    print("=== DEBUGGING: Final plots in result ===")
+    for plot_name, plot_data in features_result['plots'].items():
+        print(f"{plot_name}: {'AVAILABLE' if plot_data else 'NULL'}")
+
+    return features_result
+
 def print_available_channels(raw_data):
     """
     Print available channels and extract source-detector pairs.
@@ -756,48 +1030,33 @@ def analyze_nirs_file(file_path, activities, annotation_map=None):
             if not activities:
                 annotations_set = set([a['description'] for a in raw_data.annotations
                                   if not a['description'].lower().endswith('boundary')])
-                activities = sorted(list(annotations_set)) # Sort for consistent order
+                activities = sorted(list(annotations_set))
                 print(f"No activities specified, using all found annotations: {activities}")
-
 
             # Apply annotation mapping if provided
             if annotation_map:
                 raw_data = map_numeric_annotations_to_descriptive(raw_data, annotation_map)
-
-                # Update activity list with mapped names if needed
-                mapped_activities = []
-                original_to_mapped = {v: k for k, v in annotation_map.items()} # Map descriptive back to original if needed? No, map original numeric/string to new descriptive
-                current_annotations_desc = set([a['description'] for a in raw_data.annotations])
-
-                # Rebuild activities list based on what's actually available after mapping
-                activities = sorted([desc for desc in current_annotations_desc if not desc.lower().endswith('boundary')])
+                activities = sorted([a['description'] for a in raw_data.annotations if not a['description'].lower().endswith('boundary')])
                 print(f"Using activities after potential mapping: {activities}")
-
 
             # Create event_ids dictionary from the final activity list
             event_ids = {activity: i+1 for i, activity in enumerate(activities)}
             if not event_ids:
                  return {'error': 'No valid activities found or specified after mapping.'}
 
-
             # Extract events and create visualizations
             events_result = extract_events_and_visualize(raw_data, event_ids)
             if 'error' in events_result:
-                # If no events found, still try to generate basic info and visualization if possible
                 if events_result['error'] == 'No matching events found':
-                     # Try to generate an empty brain viz? Or just return error.
                      print("No matching events found, cannot proceed with feature extraction or ML.")
-                     # Optionally generate a basic brain viz with no activations
-                     # brain_visualizations_by_event = create_brain_visualization(raw_data, {})
                      return {
                          'error': events_result['error'],
                          'message': events_result.get('message'),
                          'available_annotations': events_result.get('available_annotations'),
-                         'plots': {'events': events_result.get('events_plot')} # Include events plot if generated
+                         'plots': {'events': events_result.get('events_plot')}
                      }
-                else: # Other event extraction error
+                else:
                     return events_result
-
 
             # Extract features AND per-event activations from events
             features_result = extract_features_from_events(
@@ -805,29 +1064,33 @@ def analyze_nirs_file(file_path, activities, annotation_map=None):
                 events_result['valid_events'],
                 event_ids
             )
+            
             # Check for errors during feature extraction
             if features_result.get('error'):
                  return {'error': f"Feature extraction failed: {features_result['error']}"}
 
-
-            # --- Get the per-event activations ---
+            # Get the per-event activations
             event_activations = features_result.get('event_activations')
 
-            # --- Generate brain visualizations (one per event) ---
+            # Generate brain visualizations (one per event)
             brain_visualizations_by_event = create_brain_visualization(raw_data, event_activations)
 
             # Get interpretation metadata
             interpretation_data = generate_interpretation_metadata(
                 features_result['feature_names'],
                 raw_data,
-                None # Pass None for brain_regions
+                None
             )
 
             # Apply machine learning if we have enough data
             ml_results = None
-            # Check shapes after potential errors/filtering in feature extraction
             n_samples_final = features_result['X_features'].shape[0]
             n_labels_final = len(np.unique(features_result['labels']))
+
+            print(f"=== DEBUGGING ML PREPARATION ===")
+            print(f"Samples: {n_samples_final}, Classes: {n_labels_final}")
+            print(f"Features shape: {features_result['X_features'].shape}")
+            print(f"Labels shape: {features_result['labels'].shape}")
 
             if n_samples_final > 2 and n_labels_final > 1:
                 print(f"Proceeding with ML: {n_samples_final} samples, {n_labels_final} classes.")
@@ -836,54 +1099,67 @@ def analyze_nirs_file(file_path, activities, annotation_map=None):
                     features_result['labels'],
                     features_result['feature_names']
                 )
-                print(f"[DEBUG] Top features received in analyze_nirs_file: {ml_results.get('top_features', [])}")
+                print(f"=== DEBUGGING ML RESULTS ===")
+                print(f"ML results keys: {list(ml_results.keys()) if ml_results else 'None'}")
+                print(f"ML plots keys: {list(ml_results.get('plots', {}).keys()) if ml_results else 'None'}")
+                print(f"Top features: {ml_results.get('top_features', [])[:5] if ml_results else 'None'}")
+                print(f"Best classifier: {ml_results.get('best_classifier') if ml_results else 'None'}")
+                print(f"Accuracy: {ml_results.get('accuracy') if ml_results else 'None'}")
             else:
                  print(f"Skipping ML: Insufficient data after feature extraction ({n_samples_final} samples, {n_labels_final} classes).")
 
+            # *** CRITICAL FIX: Combine plots correctly ***
+            all_plots = {
+                'events': events_result['events_plot'],
+                'average_response': features_result['plots']['average_response'],
+                'brain_visualizations_by_event': brain_visualizations_by_event,
+                'channels': features_result['plots']['channels'],
+                'connectivity': features_result['plots'].get('connectivity'),
+                'spectral_analysis': features_result['plots'].get('spectral_analysis'),
+                'signal_quality': features_result['plots'].get('signal_quality')
+            }
 
-            # Combine results
-            combined_results = {
-                **events_result['event_stats'],
+            # Add ML plots if available
+            if ml_results and ml_results.get('plots'):
+                all_plots.update(ml_results['plots'])
+                print(f"Added ML plots: {list(ml_results['plots'].keys())}")
+
+            # *** CRITICAL FIX: Return the correct structure ***
+            results = {
+                'plots': all_plots,
                 'features': {
                     'shape': features_result['X_features'].shape,
                     'feature_count': len(features_result['feature_names']),
-                    # Use top_features from ML results if available, otherwise empty
                     'top_features': ml_results.get('top_features', []) if ml_results else []
                 },
-                'plots': {
-                    'events': events_result['events_plot'],
-                    'average_response': features_result['plots']['average_response'],
-                    # Store the dictionary of brain plots
-                    'brain_visualizations_by_event': brain_visualizations_by_event,
-                    'channels': features_result['plots']['channels'],
-                    # Add ML plots if available
-                    **(ml_results.get('plots', {}) if ml_results else {})
-                },
+                'ml_results': ml_results,  # *** ADD THIS LINE ***
                 'channel_data': features_result['region_data'],
-                'best_classifier': ml_results.get('best_classifier') if ml_results else None,
                 'interpretation': interpretation_data,
-                'accuracy': ml_results.get('accuracy') if ml_results else None,
-                'ml_params': ml_results.get('params', {}) if ml_results else {}
+                'metadata': {
+                    'n_channels': len(raw_data.ch_names),
+                    'n_events': len(events_result['valid_events']),
+                    'sampling_frequency': raw_data.info['sfreq'],
+                    'event_counts': events_result['event_stats']['events_by_type']
+                }
             }
 
-            if not ml_results:
-                 combined_results['warning'] = 'Insufficient data for machine learning analysis'
+            print(f"=== DEBUGGING FINAL RESULTS ===")
+            print(f"Final results keys: {list(results.keys())}")
+            print(f"ML results included: {'ml_results' in results}")
+            print(f"Plots keys: {list(results['plots'].keys())}")
 
-            return combined_results
+            if not ml_results:
+                 results['warning'] = 'Insufficient data for machine learning analysis'
+
+            return results
         else:
             return {'error': 'Failed to load NIRS data.'}
     except Exception as e:
-        # Log the full traceback for debugging server-side
         print(f"CRITICAL ERROR in analyze_nirs_file: {str(e)}")
         print(traceback.format_exc())
-        # Return a user-friendly error message
         return {
-            'error': f'Analysis failed due to an unexpected error: {str(e)}',
-            # Optionally include traceback in debug mode, but generally avoid sending it to frontend
-            # 'traceback': traceback.format_exc()
+            'error': f'Analysis failed due to an unexpected error: {str(e)}'
         }
-    
-# ... (imports and other functions) ...
 
 def create_brain_visualization(raw_data, event_activations): # Removed baseline_event_name parameter
     """
