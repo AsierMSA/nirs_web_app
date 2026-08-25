@@ -1,51 +1,37 @@
-# File: /nirs-analysis-backend/nirs-analysis-backend/app/utils/response_formatter.py
+﻿"""
+Utilities for formatting API responses and JSON serialization.
+"""
+import numpy as np
+
+def convert_numpy_types(obj):
+    """Convert NumPy types to standard Python types for JSON serialization."""
+    if isinstance(obj, (np.integer, np.int64, np.int32, np.int16, np.int8)):
+        return int(obj)
+    elif isinstance(obj, (np.floating, np.float64, np.float32, np.float16)):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, (np.bool_, bool)):
+        return bool(obj)
+    elif isinstance(obj, dict):
+        return {key: convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return tuple(convert_numpy_types(item) for item in obj)
+    else:
+        return obj
 
 def format_success_response(data, message="Operation successful"):
-    """
-    Formats a successful response for the API.
-
-    Parameters:
-    data (dict): The data to include in the response.
-    message (str): A success message to include in the response.
-
-    Returns:
-    dict: A formatted response dictionary.
-    """
     return {
         "status": "success",
         "message": message,
-        "data": data
+        "data": convert_numpy_types(data)
     }
 
 def format_error_response(error_message, status_code=400):
-    """
-    Formats an error response for the API.
-
-    Parameters:
-    error_message (str): The error message to include in the response.
-    status_code (int): The HTTP status code for the error.
-
-    Returns:
-    dict: A formatted error response dictionary.
-    """
     return {
         "status": "error",
         "message": error_message,
         "code": status_code
-    }
-
-def format_analysis_result(result):
-    """
-    Formats the analysis result for the API response.
-
-    Parameters:
-    result (dict): The analysis result containing accuracy and feature importance.
-
-    Returns:
-    dict: A formatted analysis result dictionary.
-    """
-    return {
-        "accuracy": result.get("accuracy"),
-        "feature_importance": result.get("region_importance"),
-        "features": result.get("features")
     }

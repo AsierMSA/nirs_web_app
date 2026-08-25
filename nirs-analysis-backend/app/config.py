@@ -1,26 +1,23 @@
-# Configuration settings for the NIRS analysis application
-
+﻿"""
+Configuration settings for the NIRS analysis application.
+"""
 import os
+
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 class Config:
     """Base configuration class for the application."""
-    
-    # General settings
     APP_NAME = "NIRS Analysis Backend"
-    DEBUG = os.getenv("DEBUG", "False") == "True"  # Set to True for development
-    SECRET_KEY = os.getenv("SECRET_KEY", "your_secret_key")  # Secret key for session management
+    DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
+    SECRET_KEY = os.getenv("SECRET_KEY", "nirs_secret_development_key")
 
     # File upload settings
-    UPLOAD_FOLDER = os.path.join(os.getcwd(), 'data', 'uploads')  # Directory for uploaded files
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # Limit upload size to 16 MB
+    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
+    MAX_CONTENT_LENGTH = 64 * 1024 * 1024  # 64 MB
 
-    # Data processing settings
-    PROCESSED_DATA_FOLDER = os.path.join(os.getcwd(), 'data', 'processed')  # Directory for processed data
-    TEMP_DATA_FOLDER = os.path.join(os.getcwd(), 'data', 'temp')  # Directory for temporary files
+    # Data folders
+    PROCESSED_DATA_FOLDER = os.path.join(BASE_DIR, 'data', 'processed')
+    TEMP_DATA_FOLDER = os.path.join(BASE_DIR, 'data', 'temp')
 
-    # Logging settings
-    LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "INFO")  # Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-
-    # Add any additional configuration settings as needed
-
-# You can create different configuration classes for development, testing, and production by subclassing Config.
+    # Logging
+    LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "INFO")

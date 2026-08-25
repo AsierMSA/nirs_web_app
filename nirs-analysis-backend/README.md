@@ -1,71 +1,93 @@
-# NIRS Analysis Backend
+﻿# 🧠 NIRS Analysis Backend
 
-This project is a backend application designed for analyzing Near-Infrared Spectroscopy (NIRS) data. It provides an API for uploading NIRS files, performing analysis, and retrieving results, including visualizations.
+A high-performance Flask REST API service powering signal processing, artifact correction, and machine learning pipelines for Functional Near-Infrared Spectroscopy (fNIRS) neuroimaging datasets.
 
-## Project Structure
+---
 
-The project is organized into several directories and files:
+## ⚡ Tech Stack & Libraries
 
-- **app/**: Contains the main application code.
-  - **api/**: Defines the API routes and validation logic.
-  - **config.py**: Holds configuration settings for the application.
-  - **core/**: Contains the core logic for data analysis and plotting.
-  - **models/**: Defines data models for storing analysis results.
-  - **utils/**: Includes utility functions for file handling and response formatting.
+- **Framework**: [Flask](https://flask.palletsprojects.com/) + Flask-CORS
+- **Neuroimaging Engine**: [MNE-Python](https://mne.tools/) (fNIRS signal processing, channel montages, MBLL conversion)
+- **Machine Learning**: [Scikit-Learn](https://scikit-learn.org/), [imbalanced-learn](https://imbalanced-learn.org/) (SMOTE, K-Fold CV, Ensemble Classifiers)
+- **Signal Analysis**: [SciPy](https://scipy.org/), [PyWavelets](https://pywavelets.readthedocs.io/) (wavelet decomposition, PSD, TDDR)
+- **Visualization**: [Matplotlib](https://matplotlib.org/), [Seaborn](https://seaborn.pydata.org/) (Base64-encoded real-time plot generation)
 
-- **data/**: Directory for storing data files.
-  - **processed/**: Stores processed NIRS data files.
-  - **temp/**: Holds temporary files during processing.
-  - **uploads/**: Used for storing uploaded NIRS files before analysis.
+---
 
-- **tests/**: Contains unit tests for the application.
-  - **test_api.py**: Tests for API routes.
-  - **test_analyzer.py**: Tests for analysis functions.
+## 📁 Directory Architecture
 
-- **.env.example**: Template for environment variables needed for the application.
+```plaintext
+nirs-analysis-backend/
+├── app/
+│   ├── api/
+│   │   ├── routes.py          # API endpoints (upload, file list, analyze, temporal validation)
+│   │   └── validators.py      # Input validation & schema checks
+│   ├── core/
+│   │   ├── nirs_processor.py  # MNE data loading, filtering, connectivity heatmaps, PSD
+│   │   ├── nirs_ml.py         # Multi-model classification, SMOTE, temporal bias validation
+│   │   └── visualizer.py      # Brain region mapping & topographic plots
+│   ├── models/                # Data structures & result models
+│   ├── utils/                 # JSON serialization & file handlers
+│   ├── config.py              # Application settings & environment variables
+│   └── __init__.py            # Flask Application Factory
+├── tests/
+│   ├── test_api.py            # API route integration tests
+│   └── test_analyzer.py       # Core utility & processing unit tests
+├── uploads/                   # Runtime storage for uploaded NIRS files
+├── requirements.txt           # Python dependency specifications
+└── run.py                     # Backend entry point
+```
 
-- **.gitignore**: Specifies files and directories to be ignored by version control.
+---
 
-- **requirements.txt**: Lists dependencies required for the project.
+## 🚀 Quick Start Guide
 
-- **run.py**: Entry point for running the application.
+### 1. Create and Activate Virtual Environment
 
-## Setup Instructions
+```bash
+# Navigate to backend directory
+cd nirs-analysis-backend
 
-1. **Clone the Repository**:
-   ```bash
-   git clone <repository-url>
-   cd nirs-analysis-backend
-   ```
+# Windows (PowerShell)
+python -m venv venv
+.\venv\Scripts\Activate.ps1
 
-2. **Create a Virtual Environment**:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-   ```
+# macOS / Linux
+python3 -m venv venv
+source venv/bin/activate
+```
 
-3. **Install Dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+### 2. Install Dependencies
 
-4. **Set Up Environment Variables**:
-   Copy the `.env.example` file to `.env` and update the variables as needed.
+```bash
+pip install -r requirements.txt
+```
 
-5. **Run the Application**:
-   ```bash
-   python run.py
-   ```
+### 3. Launch Backend Server
 
-## Usage
+```bash
+python run.py
+```
+> The API server will start on **`http://localhost:5000`**.
 
-- Use the API endpoints defined in `app/api/routes.py` to upload NIRS files and retrieve analysis results.
-- The application will process the uploaded files and generate plots that can be sent to the frontend for visualization.
+---
 
-## Contributing
+## 📡 API Endpoints
 
-Contributions are welcome! Please submit a pull request or open an issue for any enhancements or bug fixes.
+| Method | Route | Description |
+| :--- | :--- | :--- |
+| `GET` | `/` | API status and endpoint directory |
+| `GET` | `/api/health` | Service health check and system information |
+| `POST` | `/api/upload` | Upload `.fif` / `.fif.gz` NIRS recordings |
+| `GET` | `/api/files` | List all available datasets with channel & duration metadata |
+| `GET` | `/api/available_activities` | Extract annotated experimental conditions/tasks |
+| `POST` | `/api/analyze` | Execute complete preprocessing, feature extraction & ML classification |
+| `POST` | `/api/temporal_validation` | Test for chronological signal leakage & temporal bias |
 
-## License
+---
 
-This project is licensed under the MIT License. See the LICENSE file for more details.
+## 🧪 Running Tests
+
+```bash
+pytest
+```

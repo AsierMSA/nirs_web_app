@@ -1,1 +1,84 @@
+﻿# ===============================
+# Node.js & Frontend
+# ===============================
+node_modules/
+frontend/node_modules/
+frontend/build/
+frontend/.pnp
+frontend/.pnp.js
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.package-lock.json
+
+# ===============================
+# Python & Backend
+# ===============================
+__pycache__/
+*/__pycache__/
+*/*/__pycache__/
+*/*/*/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+nirs-analysis-backend/venv/
+nirs-analysis-backend/env/
+nirs-analysis-backend/.venv/
+
+# Distribution / Packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing & Coverage
+.pytest_cache/
+*/.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+nosetests.xml
+coverage.xml
+*.cover
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Operating System & Editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
 .qodo
+
+# Dynamic upload files (preserve sample_data and .gitkeep)
+nirs-analysis-backend/uploads/*
+!nirs-analysis-backend/uploads/.gitkeep
+!nirs-analysis-backend/uploads/brain-regions.png

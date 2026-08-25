@@ -1,57 +1,45 @@
+﻿"""
+Unit tests for data formatting and core NIRS processor utilities.
+"""
+import numpy as np
 import pytest
-from app.core.analyzer import analyze_nirs_data
+from app.utils.response_formatter import convert_numpy_types, format_success_response, format_error_response
+from app.core.nirs_processor import load_nirs_data, analyze_nirs_file
 
-def test_analyze_nirs_data_valid_file():
-    # Test with a valid NIRS file and expected activities
-    raw_file_path = "data/uploads/test_valid_file.fif.gz"
-    activity_names = ["Finger Sequencing", "Simple Tapping"]
-    
-    results = analyze_nirs_data(raw_file_path, activity_names)
-    
-    # Check if results contain expected keys
-    assert 'accuracy' in results
-    assert 'best_classifier' in results
-    assert 'features' in results
-    assert 'region_importance' in results
+def test_convert_numpy_types():
+    """Verify numpy scalar and array types are converted to JSON serializable Python types."""
+    data = {
+        'int_val': np.int64(42),
+        'float_val': np.float32(3.14159),
+        'bool_val': np.bool_(True),
+        'array_val': np.array([1, 2, 3]),
+        'nested': {
+            'matrix': np.ones((2, 2))
+        }
+    }
+    converted = convert_numpy_types(data)
+    assert isinstance(converted['int_val'], int)
+    assert isinstance(converted['float_val'], float)
+    assert isinstance(converted['bool_val'], bool)
+    assert isinstance(converted['array_val'], list)
+    assert isinstance(converted['nested']['matrix'], list)
 
-def test_analyze_nirs_data_invalid_file():
-    # Test with an invalid NIRS file path
-    raw_file_path = "data/uploads/non_existent_file.fif.gz"
-    activity_names = ["Finger Sequencing", "Simple Tapping"]
-    
-    results = analyze_nirs_data(raw_file_path, activity_names)
-    
-    # Check if results indicate failure
-    assert results['accuracy'] is None
-    assert results['best_classifier'] is None
-    assert results['features'] is None
-    assert results['region_importance'] == {}
+def test_format_responses():
+    """Verify standard response structures."""
+    success = format_success_response({"accuracy": 0.85}, "Done")
+    assert success['status'] == 'success'
+    assert success['data']['accuracy'] == 0.85
 
-def test_analyze_nirs_data_no_activities():
-    # Test with a valid NIRS file but no matching activities
-    raw_file_path = "data/uploads/test_valid_file.fif.gz"
-    activity_names = ["Nonexistent Activity"]
-    
-    results = analyze_nirs_data(raw_file_path, activity_names)
-    
-    # Check if results indicate no activities found
-    assert results['accuracy'] is None
-    assert results['best_classifier'] is None
-    assert results['features'] is None
-    assert results['region_importance'] == {}
+    error = format_error_response("Something went wrong", 400)
+    assert error['status'] == 'error'
+    assert error['code'] == 400
 
-def test_analyze_nirs_data_partial_data():
-    # Test with a valid NIRS file and some activities
-    raw_file_path = "data/uploads/test_partial_data_file.fif.gz"
-    activity_names = ["Finger Sequencing", "Simple Tapping", "Nonexistent Activity"]
-    
-    results = analyze_nirs_data(raw_file_path, activity_names)
-    
-    # Check if results contain expected keys and accuracy is calculated
-    assert 'accuracy' in results
-    assert results['accuracy'] is not None
-    assert 'best_classifier' in results
-    assert 'features' in results
-    assert 'region_importance' in results
+def test_load_nirs_data_invalid_path():
+    """Verify loading non-existent file returns None without throwing unhandled exceptions."""
+    result = load_nirs_data("non_existent_file_path.fif.gz")
+    assert result is None
 
-# Additional tests can be added here for more comprehensive coverage.
+def test_analyze_nirs_file_missing():
+    """Verify analysis on missing file returns a clear error dictionary."""
+    result = analyze_nirs_file("missing_file.fif.gz", ["Activity A"])
+    assert 'error' in result

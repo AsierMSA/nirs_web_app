@@ -1,29 +1,62 @@
+﻿"""
+Unit tests for API routes and endpoint validation.
+"""
 import pytest
-from app.api.routes import upload_nirs_file, get_analysis_results
-from fastapi.testclient import TestClient
+from app import create_app
 
-# Initialize the FastAPI test client
-client = TestClient(app)
+@pytest.fixture
+def client():
+    app = create_app()
+    app.config['TESTING'] = True
+    with app.test_client() as client:
+        yield client
 
-def test_upload_nirs_file():
-    # Test uploading a valid NIRS file
-    response = client.post("/upload", files={"file": ("test_file.fif", open("data/uploads/test_file.fif", "rb"))})
+def test_root_endpoint(client):
+    """Test index endpoint returns status online."""
+    response = client.get('/')
     assert response.status_code == 200
-    assert "Analysis started" in response.json().get("message")
+    json_data = response.get_json()
+    assert json_data['status'] == 'online'
+    assert 'endpoints' in json_data
 
-    # Test uploading an invalid file type
-    response = client.post("/upload", files={"file": ("test_file.txt", open("data/uploads/test_file.txt", "rb"))})
+def test_health_check(client):
+    """Test health check endpoint."""
+    response = client.get('/api/health')
+    assert response.status_code == 200
+    json_data = response.get_json()
+    assert json_data['status'] == 'healthy'
+
+def test_get_files(client):
+    """Test listing uploaded files."""
+    response = client.get('/api/files')
+    assert response.status_code == 200
+    json_data = response.get_json()
+    assert 'files' in json_data
+    assert isinstance(json_data['files'], list)
+
+def test_upload_no_file(client):
+    """Test upload endpoint with empty request."""
+    response = client.post('/api/upload')
     assert response.status_code == 400
-    assert "Invalid file type" in response.json().get("detail")
+    json_data = response.get_json()
+    assert 'error' in json_data
 
-def test_get_analysis_results():
-    # Assuming an analysis has been performed and results are available
-    response = client.get("/results/1")  # Replace '1' with a valid analysis ID
-    assert response.status_code == 200
-    assert "accuracy" in response.json()
-    assert "feature_importance" in response.json()
+def test_upload_invalid_extension(client):
+    """Test upload endpoint with invalid file type."""
+    import io
+    data = {
+        'file': (io.BytesIO(b"dummy text content"), 'invalid_file.txt')
+    }
+    response = client.post('/api/upload', data=data, content_type='multipart/form-data')
+    assert response.status_code == 400
+    assert 'Invalid file type' in response.get_json()['error']
 
-    # Test getting results for a non-existent analysis ID
-    response = client.get("/results/999")  # Assuming 999 does not exist
-    assert response.status_code == 404
-    assert "Analysis not found" in response.json().get("detail")
+def test_available_activities_missing_param(client):
+    """Test available activities without file_id query param."""
+    response = client.get('/api/available_activities')
+    assert response.status_code == 400
+
+def test_analyze_empty_body(client):
+    """Test analyze endpoint with empty payload."""
+    response = client.post('/api/analyze', json={})
+    assert response.status_code == 400

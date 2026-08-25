@@ -1,79 +1,59 @@
-# Frontend for NIRS Web App
+﻿# 💻 NIRS Web App Frontend
 
-This is the frontend component of the NIRS web application. It provides the user interface and handles interactions with the backend services.
+Modern, interactive React single-page application (SPA) providing neuroscientists and BCI researchers with a real-time analytics dashboard for Functional Near-Infrared Spectroscopy (fNIRS) datasets.
 
-## Features
+---
 
-- User-friendly interface for NIRS data analysis.
-- Upload and manage NIRS files (.fif, .fif.gz).
-- Select specific activities within files for analysis.
-- Visualize analysis results, including plots and feature importance.
-- Interpret results with neurophysiological context.
-- Perform temporal validation checks.
-- Integration with backend APIs for processing and analysis.
-- Responsive design for various screen sizes.
+## ✨ Highlights & Capabilities
 
-## Requirements
+- 📤 **Drag & Drop Data Ingestion**: Seamlessly upload and validate `.fif` / `.fif.gz` NIRS recordings.
+- 🎯 **Interactive Paradigm & Activity Selection**: Select specific cognitive tasks (`Finger Sequencing`, `Tapping`, `Mental Arithmetic`, `Rest`) for comparison.
+- 📊 **Multi-Panel Analytics Dashboard**:
+  - Topographic brain region importance mapping
+  - Inter-channel functional connectivity correlation matrices
+  - Multi-classifier benchmark metrics (Accuracy, ROC-AUC, Confusion Matrix)
+  - Chronological temporal validation charts
+  - Automated neurophysiological interpretation reports
+- 📱 **Responsive & Clean UI**: Styled with modern CSS components and real-time loading state indicators.
 
-- Node.js (version 16.x or higher recommended)
-- npm (usually included with Node.js) or yarn
+---
 
-## Installation
+## 🛠️ Tech Stack
 
-1.  **Clone the repository:**
-    ```bash
-    git clone <repository-url>
-    cd <repository-folder>/frontend
-    ```
-2.  **Install dependencies:**
-    Using npm:
-    ```bash
-    npm install
-    ```
-    Or using yarn:
-    ```bash
-    yarn install
-    ```
+- **Framework**: React 18
+- **Data Communication**: Fetch API with CORS preflight handling
+- **Styling**: Modular CSS3 with custom visualizer components
 
-## Usage
+---
 
-1.  **Start the development server:**
-    Make sure the backend server is running (usually on `http://localhost:5000`).
-    Using npm:
-    ```bash
-    npm start
-    ```
-    Or using yarn:
-    ```bash
-    yarn start
-    ```
-2.  **Open the application:**
-    Open your web browser and navigate to `http://localhost:3000` (or the port specified in the output).
+## 🚀 Quick Start
 
-## Build for Production
+### 1. Install Dependencies
 
-To create an optimized build for deployment:
-Using npm:
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install packages
+npm install
+```
+
+### 2. Start the Development Server
+
+Make sure the backend API is running on `http://localhost:5000`.
+
+```bash
+npm start
+```
+
+Your browser will automatically open: **`http://localhost:3000`**.
+
+---
+
+## 📦 Production Build
+
+To compile static assets for production deployment:
+
 ```bash
 npm run build
 ```
-Or using yarn:
-```bash
-yarn build
-```
-This will create a `build` directory containing the static assets for deployment.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit issues for bugs or feature requests, or open pull requests with improvements.
-
-1.  Fork the repository.
-2.  Create a new branch (`git checkout -b feature/your-feature-name`).
-3.  Make your changes.
-4.  Commit your changes (`git commit -m 'Add some feature'`).
-5.  Push to the branch (`git push origin feature/your-feature-name`).
-6.  Open a Pull Request.
-
-## License
-
-This project is licensed under the [MIT License](LICENSE). See the LICENSE file for details.
