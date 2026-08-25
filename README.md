@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 # 🧠 NIRS Web App
 ### End-to-End fNIRS Neuroimaging & BCI Machine Learning Platform
@@ -61,24 +61,24 @@ The **NIRS Web App** streamlines the analysis and classification of multi-channe
 ```mermaid
 flowchart TD
     subgraph Client["💻 Frontend (React 18 SPA)"]
-        UI[Interactive Dashboard]
-        UploadUI[File Uploader & Activity Selector]
-        Viewer[Topography, Metrics & Plot Viewer]
+        UI["Interactive Dashboard"]
+        UploadUI["File Uploader & Activity Selector"]
+        Viewer["Topography, Metrics & Plot Viewer"]
     end
 
     subgraph Backend["⚙️ Backend API (Flask REST)"]
-        API[API Endpoints /api/*]
-        ProcCore[NIRS Signal Processor]
-        MLCore[Machine Learning Engine]
-        VisCore[Matplotlib / Seaborn Generator]
+        API["API Endpoints /api/*"]
+        ProcCore["NIRS Signal Processor"]
+        MLCore["Machine Learning Engine"]
+        VisCore["Matplotlib / Seaborn Generator"]
     end
 
     subgraph Pipeline["🧠 Scientific Pipeline"]
-        Raw[Raw .fif.gz File] --> TDDR[TDDR Motion Correction & Filtering]
-        TDDR --> MBLL[Modified Beer-Lambert Law (HbO / HbR)]
-        MBLL --> Feat[Feature Extraction & Scaling]
-        Feat --> Train[Multi-Model ML & SMOTE (SVM, RF, LDA)]
-        Train --> Metrics[Accuracy, Confusion Matrix & Topography]
+        Raw["Raw .fif.gz File"] --> TDDR["TDDR Motion Correction & Filtering"]
+        TDDR --> MBLL["Modified Beer-Lambert Law (HbO / HbR)"]
+        MBLL --> Feat["Feature Extraction & Scaling"]
+        Feat --> Train["Multi-Model ML & SMOTE (SVM, RF, LDA)"]
+        Train --> Metrics["Accuracy, Confusion Matrix & Topography"]
     end
 
     UploadUI -->|POST /api/upload| API
